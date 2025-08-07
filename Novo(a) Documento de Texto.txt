@@ -1,0 +1,706 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+
+
+local player = game:GetService("Players").LocalPlayer
+local shop = player.PlayerGui:FindFirstChild("Main") and player.PlayerGui.Main:FindFirstChild("CoinsShop")
+
+local Window = Fluent:CreateWindow({
+    Title = game:GetService("MarketplaceService"):GetProductInfo(109983668079237).Name .. " 〢 Stellar",
+    SubTitle = "discord.gg/FmMuvkaWvG",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(520, 400),
+    Acrylic = false,
+    Theme = "Darker",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local Tabs = {
+    Updates = Window:AddTab({ Title = "Home", Icon = "home" }),
+    Main = Window:AddTab({ Title = "Main", Icon = "rocket" }),
+    Server = Window:AddTab({ Title = "Server", Icon = "server" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" }),
+}
+
+local plotName
+for _, plot in ipairs(workspace.Plots:GetChildren()) do
+    if plot:FindFirstChild("YourBase", true).Enabled then
+        plotName = plot.Name
+        break
+    end
+end
+
+local remainingTime = workspace.Plots[plotName].Purchases.PlotBlock.Main.BillboardGui.RemainingTime
+local rtp = Tabs.Main:AddParagraph({ Title = "Lock Time: " .. remainingTime.Text })
+
+task.spawn(function()
+    while true do
+        rtp:SetTitle("Lock Time: " .. remainingTime.Text)
+        task.wait(0.25)
+    end
+end)
+
+Tabs.Main:AddButton({
+    Title = "Steal",
+    Description = "Spam if not working (teleports you to middle)",
+    Callback = function()
+        local player = game.Players.LocalPlayer
+        local pos = CFrame.new(0, -500, 0)
+        local startT = os.clock()
+        while os.clock() - startT < 1 do
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.CFrame = pos
+            end
+            task.wait()
+        end
+    end
+})
+
+local SpeedSlider = Tabs.Main:AddSlider("Slider", {
+    Title = "Speed Boost",
+    Default = 0,
+    Min = 0,
+    Max = 6,
+    Rounding = 1,
+})
+
+Tabs.Main:AddParagraph({
+    Title = "Use Speed Coil/Invisibility Cloak For Higher Speed",
+})
+
+local currentSpeed = 0
+SpeedSlider:OnChanged(function(Value)
+    currentSpeed = tonumber(Value) or 0
+end)
+
+local function sSpeed(character)
+    local hum = character:WaitForChild("Humanoid")
+    local hb = game:GetService("RunService").Heartbeat
+    
+    task.spawn(function()
+        while character and hum and hum.Parent do
+            if currentSpeed > 0 and hum.MoveDirection.Magnitude > 0 then
+                character:TranslateBy(hum.MoveDirection * currentSpeed * hb:Wait() * 10)
+            end
+            task.wait()
+        end
+    end)
+end
+
+local function onCharacterAdded(character)
+    sSpeed(character)
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+
+if player.Character then
+    onCharacterAdded(player.Character)
+end
+
+
+Tabs.Main:AddButton({
+    Title = "Invisible",
+    Description = "Use Invisibility Cloak",
+    Callback = function()
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local cloak = character:FindFirstChild("Invisibility Cloak")
+        if cloak and cloak:GetAttribute("SpeedModifier") == 2 then
+            cloak.Parent = workspace
+        else
+            Fluent:Notify({ Title = "Stellar", Content = "Use Invisibility Cloak First", Duration = 2 })
+        end
+    end
+})
+
+
+-- ESP
+
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local espEnabled = false
+local espInstances = {}
+
+local function createESP(player)
+    if not espEnabled then return end
+    if player == Players.LocalPlayer then return end
+    
+    local character = player.Character
+    if not character then return end
+    
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 10)
+    if not humanoidRootPart then return end
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_" .. player.Name
+    billboard.AlwaysOnTop = true
+    billboard.Size = UDim2.new(0, 200, 0, 30)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.Adornee = humanoidRootPart
+    billboard.Parent = humanoidRootPart
+    
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Name = "NameLabel"
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = player.DisplayName
+    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    textLabel.TextStrokeTransparency = 0
+    textLabel.TextScaled = true
+    textLabel.Font = Enum.Font.GothamBold
+    textLabel.Parent = billboard
+    
+    espInstances[player] = billboard
+    
+    local function onCharacterAdded(newCharacter)
+        if billboard then billboard:Destroy() end
+        
+        humanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart", 10)
+        if humanoidRootPart and espEnabled then
+            billboard.Adornee = humanoidRootPart
+            billboard.Parent = humanoidRootPart
+        end
+    end
+    
+    player.CharacterAdded:Connect(onCharacterAdded)
+end
+
+local function removeESP(player)
+    local espInstance = espInstances[player]
+    if espInstance then
+        espInstance:Destroy()
+        espInstances[player] = nil
+    end
+end
+
+local function toggleESP(enable)
+    espEnabled = enable
+    if enable then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= Players.LocalPlayer then
+                coroutine.wrap(function()
+                    createESP(player)
+                end)()
+            end
+        end
+    else
+        for player, espInstance in pairs(espInstances) do
+            if espInstance then
+                espInstance:Destroy()
+            end
+        end
+        espInstances = {}
+    end
+end
+
+local function initPlayerConnections()
+    Players.PlayerAdded:Connect(function(player)
+        player.CharacterAdded:Connect(function(character)
+            if player ~= Players.LocalPlayer and espEnabled then
+                task.wait(1)
+                createESP(player)
+            end
+        end)
+    end)
+
+    Players.PlayerRemoving:Connect(removeESP)
+end
+
+initPlayerConnections()
+
+local RaritySettings = {
+    ["Legendary"] = {
+        Color = Color3.new(1, 1, 0),
+        Size = UDim2.new(0, 150, 0, 50)
+    },
+    ["Mythic"] = {
+        Color = Color3.new(1, 0, 0),
+        Size = UDim2.new(0, 150, 0, 50)
+    },
+    ["Brainrot God"] = {
+        Color = Color3.new(0.5, 0, 0.5),
+        Size = UDim2.new(0, 180, 0, 60)
+    },
+    ["Secret"] = {
+        Color = Color3.new(0, 0, 0),
+        Size = UDim2.new(0, 200, 0, 70)
+    }
+}
+
+local MutationSettings = {
+    ["Gold"] = {
+        Color = Color3.fromRGB(255, 215, 0),
+        Size = UDim2.new(0, 120, 0, 30)
+    },
+
+    ["Diamond"] = {
+        Color = Color3.fromRGB(0, 191, 255),
+        Size = UDim2.new(0, 120, 0, 30)
+    },
+
+    ["Rainbow"] = {
+        Color = Color3.fromRGB(255, 192, 203),
+        Size = UDim2.new(0, 120, 0, 30)
+    },
+
+    ["Bloodrot"] = {
+        Color = Color3.fromRGB(139, 0, 0),
+        Size = UDim2.new(0, 120, 0, 30)
+    }
+}
+
+local activeESP = {}
+local activeLockTimeEsp = false
+local lteInstances = {}
+
+local function updatelock()
+    if not activeLockTimeEsp then
+        for _, instance in pairs(lteInstances) do
+            if instance then
+                instance:Destroy()
+            end
+        end
+        lteInstances = {}
+        return
+    end
+
+    for _, plot in pairs(workspace.Plots:GetChildren()) do
+        local timeLabel = plot:FindFirstChild("Purchases", true) and 
+        plot.Purchases:FindFirstChild("PlotBlock", true) and
+        plot.Purchases.PlotBlock.Main:FindFirstChild("BillboardGui", true) and
+        plot.Purchases.PlotBlock.Main.BillboardGui:FindFirstChild("RemainingTime", true)
+        
+        if timeLabel and timeLabel:IsA("TextLabel") then
+            local espName = "LockTimeESP_" .. plot.Name
+            local existingBillboard = plot:FindFirstChild(espName)
+            
+            local isUnlocked = timeLabel.Text == "0s"
+            local displayText = isUnlocked and "Unlocked" or ("Lock: " .. timeLabel.Text)
+            
+            local textColor
+            if plot.Name == plotName then
+                textColor = isUnlocked and Color3.fromRGB(0, 255, 0)
+                            or Color3.fromRGB(0, 255, 0)
+            else
+                textColor = isUnlocked and Color3.fromRGB(220, 20, 60)
+                            or Color3.fromRGB(255, 255, 0)
+            end
+            
+            if not existingBillboard then
+                local billboard = Instance.new("BillboardGui")
+                billboard.Name = espName
+                billboard.Size = UDim2.new(0, 200, 0, 30)
+                billboard.StudsOffset = Vector3.new(0, 5, 0)
+                billboard.AlwaysOnTop = true
+                billboard.Adornee = plot.Purchases.PlotBlock.Main
+                
+                local label = Instance.new("TextLabel")
+                label.Text = displayText
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.TextScaled = true
+                label.TextColor3 = textColor
+                label.TextStrokeColor3 = Color3.new(0, 0, 0)
+                label.TextStrokeTransparency = 0
+                label.Font = Enum.Font.SourceSansBold
+                label.Parent = billboard
+                
+                billboard.Parent = plot
+                lteInstances[plot.Name] = billboard
+            else
+                existingBillboard.TextLabel.Text = displayText
+                existingBillboard.TextLabel.TextColor3 = textColor
+            end
+        end
+    end
+end
+
+local function updateRESP()
+    for _, plot in pairs(workspace.Plots:GetChildren()) do
+        if plot.Name ~= plotName then
+            for _, child in pairs(plot:GetDescendants()) do
+                if child.Name == "Rarity" and child:IsA("TextLabel") and RaritySettings[child.Text] then
+                    local parentModel = child.Parent.Parent
+                    local espName = child.Text.."_ESP"
+                    local mutationEspName = "Mutation_ESP"
+                    local existingBillboard = parentModel:FindFirstChild(espName)
+                    local existingMutationBillboard = parentModel:FindFirstChild(mutationEspName)
+                    
+                    if activeESP[child.Text] then
+                        if not existingBillboard then
+                            local settings = RaritySettings[child.Text]
+                            
+                            local billboard = Instance.new("BillboardGui")
+                            billboard.Name = espName
+                            billboard.Size = settings.Size
+                            billboard.StudsOffset = Vector3.new(0, 3, 0)
+                            billboard.AlwaysOnTop = true
+                            
+                            local label = Instance.new("TextLabel")
+                            label.Text = child.Parent.DisplayName.Text
+                            label.Size = UDim2.new(1, 0, 1, 0)
+                            label.BackgroundTransparency = 1
+                            label.TextScaled = true
+                            label.TextColor3 = settings.Color
+                            label.TextStrokeColor3 = Color3.new(0, 0, 0)
+                            label.TextStrokeTransparency = 0
+                            label.Font = Enum.Font.SourceSansBold
+                            
+                            label.Parent = billboard
+                            billboard.Parent = parentModel
+                        end
+                        
+                        local mutation = child.Parent:FindFirstChild("Mutation")
+                        if mutation and mutation:IsA("TextLabel") and MutationSettings[mutation.Text] then
+                            local mutationSettings = MutationSettings[mutation.Text]
+                            
+                            if not existingMutationBillboard then
+                                local mutationBillboard = Instance.new("BillboardGui")
+                                mutationBillboard.Name = mutationEspName
+                                mutationBillboard.Size = mutationSettings.Size
+                                mutationBillboard.StudsOffset = Vector3.new(0, 6, 0)
+                                mutationBillboard.AlwaysOnTop = true
+                                
+                                local mutationLabel = Instance.new("TextLabel")
+                                mutationLabel.Text = mutation.Text
+                                mutationLabel.Size = UDim2.new(1, 0, 1, 0)
+                                mutationLabel.BackgroundTransparency = 1
+                                mutationLabel.TextScaled = true
+                                mutationLabel.TextColor3 = mutationSettings.Color
+                                mutationLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+                                mutationLabel.TextStrokeTransparency = 0
+                                mutationLabel.Font = Enum.Font.SourceSansBold
+                                
+                                mutationLabel.Parent = mutationBillboard
+                                mutationBillboard.Parent = parentModel
+                            else
+                                existingMutationBillboard.TextLabel.Text = mutation.Text
+                                existingMutationBillboard.TextLabel.TextColor3 = mutationSettings.Color
+                            end
+                        elseif existingMutationBillboard then
+                            existingMutationBillboard:Destroy()
+                        end
+                    else
+                        if existingBillboard then
+                            existingBillboard:Destroy()
+                        end
+                        if existingMutationBillboard then
+                            existingMutationBillboard:Destroy()
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+local MultiDropdown = Tabs.Main:AddDropdown("MultiDropdown", {
+    Title = "Esp",
+    Values = {"Lock", "Players", "Legendary", "Mythic", "Brainrot God", "Secret",},
+    Multi = true,
+    Default = {},
+})
+
+MultiDropdown:OnChanged(function(Value)
+    if Value["Players"] then
+        toggleESP(true)
+    else
+        toggleESP(false)
+    end
+    activeESP["Legendary"] = Value["Legendary"] or false
+    activeESP["Mythic"] = Value["Mythic"] or false
+    activeESP["Brainrot God"] = Value["Brainrot God"] or false
+    activeESP["Secret"] = Value["Secret"] or false
+    
+    activeLockTimeEsp = Value["Lock"] or false
+    updatelock()
+    
+    updateRESP()
+    
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.25)
+        if activeLockTimeEsp then
+            updatelock()
+        end
+        if next(activeESP) ~= nil then
+            updateRESP()
+        end
+    end
+end)
+
+Tabs.Main:AddKeybind("Keybind", {
+    Title = "Steal Keybind",
+    Mode = "Toggle",
+    Default = "G",
+    Callback = function(Value)
+        local player = game.Players.LocalPlayer
+        local pos = CFrame.new(0, -500, 0)
+        local startT = os.clock()
+        while os.clock() - startT < 1 do
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.CFrame = pos
+            end
+            task.wait()
+        end
+    end,
+})
+
+Tabs.Main:AddKeybind("Keybind", {
+    Title = "Shop",
+    Mode = "Toggle",
+    Default = "F",
+    Description = "Opens/Closes shop",
+    Callback = function(Value)
+        shop.Visible = Value
+        shop.Position = Value and UDim2.new(0.5, 0, 0.5, 0) or UDim2.new(0.5, 0, 1.5, 0)
+    end,
+})
+
+
+
+-- SERVER
+
+local petModels = game:GetService("ReplicatedStorage").Models.Animals:GetChildren()
+
+local petNames = {}
+for _, pet in ipairs(petModels) do
+    table.insert(petNames, pet.Name)
+end
+
+local MultiDropdown = Tabs.Server:AddDropdown("MultiDropdown", {
+    Title = "Pet Finder",
+    Values = petNames,
+    Multi = true,
+    Default = {},
+})
+
+local function getOwner(plot)
+    local text = plot:FindFirstChild("PlotSign") and 
+    plot.PlotSign:FindFirstChild("SurfaceGui") and 
+    plot.PlotSign.SurfaceGui.Frame.TextLabel.Text or "Unknown"
+    return text:match("^(.-)'s Base") or text
+end
+
+local myPlotName
+for _, plot in ipairs(workspace.Plots:GetChildren()) do
+    if plot:FindFirstChild("YourBase", true).Enabled then
+        myPlotName = plot.Name
+        break
+    end
+end
+
+local Rparagraph = Tabs.Server:AddParagraph({
+    Title = "No pets selected",
+})
+
+local SelectedPets = {}
+local isRunning = false
+local lnt = 0
+local nc = 5
+
+MultiDropdown:OnChanged(function(SelectedPetss)
+    SelectedPets = {}
+    for petName, isSelected in pairs(SelectedPetss) do
+        if isSelected then
+            table.insert(SelectedPets, petName)
+        end
+    end
+    
+    if not isRunning and #SelectedPets > 0 then
+        isRunning = true
+        task.spawn(function()
+            local lastResults = {}
+            
+            while #SelectedPets > 0 do
+                local counts = {}
+                local found = false
+                local newPetsFound = false
+                
+                for _, plot in pairs(workspace.Plots:GetChildren()) do
+                    if plot.Name ~= myPlotName then
+                        local owner = getOwner(plot)
+                        for _, v in pairs(plot:GetDescendants()) do
+                            if v.Name == "DisplayName" and table.find(SelectedPets, v.Text) then
+                                counts[owner] = counts[owner] or {}
+                                counts[owner][v.Text] = (counts[owner][v.Text] or 0) + 1
+                                found = true
+                                
+                                if not lastResults[owner] or not lastResults[owner][v.Text] then
+                                    newPetsFound = true
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                if found then
+                    local resultText = ""
+                    for owner, pets in pairs(counts) do
+                        for name, count in pairs(pets) do
+                            resultText = resultText .. name.." x"..count.." | Owner: "..owner.."\n"
+                            
+                            if newPetsFound and (os.time() - lnt) > nc then
+                                Fluent:Notify({
+                                    Title = "Pet Finder",
+                                    Content = "Found "..name.." x"..count.." Owner: "..owner,
+                                    Duration = 2
+                                })
+                                lnt = os.time()
+                            end
+                        end
+                    end
+                    Rparagraph:SetTitle(resultText)
+                else
+                    Rparagraph:SetTitle("No selected pets found")
+                end
+                
+                lastResults = counts
+                task.wait(0.5)
+            end
+            
+            isRunning = false
+            Rparagraph:SetTitle("No pets selected")
+        end)
+    elseif #SelectedPets == 0 then
+        Rparagraph:SetTitle("No pets selected")
+    end
+end)
+
+
+Tabs.Server:AddSection("Other")
+
+
+Tabs.Server:AddButton({
+    Title = "Server Hop",
+    Description = "Joins a Different Server",
+    Callback = function()
+        local PlaceID = game.PlaceId
+        local AllIDs = {}
+        local foundAnything = ""
+        local actualHour = os.date("!*t").hour
+        local Deleted = false
+        local File = pcall(function()
+            AllIDs = game:GetService('HttpService'):JSONDecode(readfile("NotSameServers.json"))
+        end)
+        if not File then
+            table.insert(AllIDs, actualHour)
+            writefile("NotSameServers.json", game:GetService('HttpService'):JSONEncode(AllIDs))
+        end
+        function TPReturner()
+            local Site;
+            if foundAnything == "" then
+                Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'))
+            else
+                Site = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
+            end
+            local ID = ""
+            if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
+                foundAnything = Site.nextPageCursor
+            end
+            local num = 0;
+            for _,v in pairs(Site.data) do
+                local Possible = true
+                ID = tostring(v.id)
+                if tonumber(v.maxPlayers) > tonumber(v.playing) then
+                    for _,Existing in pairs(AllIDs) do
+                        if num ~= 0 then
+                            if ID == tostring(Existing) then
+                                Possible = false
+                                end
+                            else
+                                if tonumber(actualHour) ~= tonumber(Existing) then
+                                    local delFile = pcall(function()
+                                        delfile("NotSameServers.json")
+                                        AllIDs = {}
+                                        table.insert(AllIDs, actualHour)
+                                        end)
+                                    end
+                                end
+                            num = num + 1
+                        end
+                    if Possible == true then
+                        table.insert(AllIDs, ID)
+                        task.wait()
+                        pcall(function()
+                            writefile("NotSameServers.json", game:GetService('HttpService'):JSONEncode(AllIDs))
+                            task.wait()
+                            game:GetService("TeleportService"):TeleportToPlaceInstance(PlaceID, ID, game.Players.LocalPlayer)
+                        end)
+                task.wait(4)
+            end
+        end
+    end
+end
+function Teleport()
+    while task.wait() do
+        pcall(function()
+            TPReturner()
+            if foundAnything ~= "" then
+                TPReturner()
+            end
+        end)
+    end
+end
+Teleport()
+    end
+})
+
+Tabs.Server:AddButton({
+    Title = "Rejoin",
+    Description = "Rejoins The Same Server",
+    Callback = function()
+        local ts = game:GetService("TeleportService")
+        local p = game:GetService("Players").LocalPlayer
+        ts:TeleportToPlaceInstance(game.PlaceId, game.JobId, p)
+    end
+})
+
+
+local Timer = Tabs.Updates:AddParagraph({ Title = "Time: 00:00:00" })
+local st = os.time()
+
+task.spawn(function()
+    while true do
+        local et = os.difftime(os.time(), st)
+        Timer:SetTitle(string.format("Time: %02d:%02d:%02d", math.floor(et / 3600), math.floor((et % 3600) / 60), et % 60))
+        task.wait(1)
+    end
+end)
+
+Tabs.Updates:AddButton({
+    Title = "Discord Server",
+    Description = "Copies Discord Invite Link",
+    Callback = function()
+        setclipboard("https://discord.gg/FmMuvkaWvG")
+        Fluent:Notify({ Title = "Stellar", Content = "Copied Successfully", Duration = 2 })
+    end
+})
+
+Tabs.Updates:AddButton({
+    Title = "Run Infinite Yield",
+    Callback = function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+    end
+})
+
+game:GetService('Players').LocalPlayer.Idled:Connect(function()
+    game:GetService('VirtualUser'):CaptureController()
+    game:GetService('VirtualUser'):ClickButton2(Vector2.new())
+end)
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+SaveManager:SetLibrary(Fluent)
+SaveManager:BuildConfigSection(Tabs.Settings)
+SaveManager:LoadAutoloadConfig()
+
+Window:SelectTab(1)
