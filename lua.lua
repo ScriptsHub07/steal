@@ -5,10 +5,10 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 
 -- ===== WEBHOOKS =====
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1423669475340845086/kilrOY_Kctz8sFU7FFxEdB9a0GNeTEheKzCVwktjx0U6nta2WS0H9m1Rv4FWTwIKpIOg"
-local SPECIAL_WEBHOOK_URL = "https://discord.com/api/webhooks/1423669564440318012/OfFIpa6UrRdtw0WJIsdyKT4tqR7cd4KaFs4Tx6w7HF7wwO1lAjdoLL1bO-jIon4CitXP"
-local ULTRA_HIGH_WEBHOOK_URL = "https://discord.com/api/webhooks/1423669631759155253/uYI9OCTSc3GNcNdL6q5iDj758cV2uL9jmHVgFyfibtI3Yw4JMEaSpVIBc3LaFafuJG-6"
-local BRAINROT_150M_WEBHOOK_URL = "https://discord.com/api/webhooks/1424353172553732178/G6Djgcv5Q8xfN35Ecs6T1bJhbUPWGyHfU9Bmjq1hM9f8iM1HfSIZXtMepoAVLnQcm4dp"
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1424416294022807563/4zIQ6lind854v4kDzt7eHczFDuWcYUQ-M7NQQ9ZCP4jxD8uXjFGleIVAHi0IIAhDd2r-"
+local SPECIAL_WEBHOOK_URL = "https://discord.com/api/webhooks/1424416367431516311/mg-l7iEF9Xk3RFiVF-YKrFDL8JSVjXAFVFnNvuJ7x1nmZ2xMP9_1zIHJ9hJbuOmY4fGi"
+local ULTRA_HIGH_WEBHOOK_URL = "https://discord.com/api/webhooks/1424908273370529964/m17LNlQG1Nx33EzYZIcDePP7KsGT59teViuwybrMpFBxQHJPD1EglcB3z2Ye0qzlvKA7"
+local BRAINROT_150M_WEBHOOK_URL = "https://discord.com/api/webhooks/1424416592011464726/tQtnmJdAgKNSMX1bkAp8PdP9pws6bvoXKMwJWlPc0wkx2McMv4zmxwL6M9Pnw-VlOMEZ"
 
 -- ===== CONFIGURAÇÃO =====
 local SERVER_SWITCH_INTERVAL = 2
@@ -517,7 +517,7 @@ local function switchServer()
     
     -- Método 1: Server Hop externo
     local success, errorMsg = pcall(function()
-        local module = loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptsHub07/VPS/refs/heads/main/hop.lua"))()
+        local module = loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptsHub07/steal/refs/heads/main/hop.lua"))()
         module:Teleport(game.PlaceId)
     end)
     
@@ -603,3 +603,4 @@ print("✅ Sistema iniciado!")
 print("🚨 Sistema de alerta para brainrot > 150M ativado!")
 
 coroutine.wrap(main)()
+
