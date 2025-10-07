@@ -517,7 +517,7 @@ local function switchServer()
     
     -- Método 1: Server Hop externo
     local success, errorMsg = pcall(function()
-        local module = loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptsHub07/VPS/refs/heads/main/hop.lua"))()
+        local module = loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptsHub07/steal/refs/heads/main/teste1.lua"))()
         module:Teleport(game.PlaceId)
     end)
     
