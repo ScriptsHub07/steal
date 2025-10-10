@@ -374,7 +374,7 @@ local function scanAllPlots()
     -- Ordenar por geração (maior primeiro)
     table.sort(allBrainrots, function(a, b)
         return a.numericGen > b.numericGen
-    end
+    end)
     
     -- Pegar apenas o MAIOR brainrot
     local highestBrainrot = allBrainrots[1] or nil
