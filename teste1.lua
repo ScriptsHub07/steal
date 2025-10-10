@@ -5,43 +5,35 @@ local RunService = game:GetService("RunService")
 
 local module = {}
 local cache = {}
-local usedServers = {} -- Rastreia servidores já utilizados
+local usedServers = {}
 local lastFetch = 0
-local CACHE_TIMEOUT = 60
+local CACHE_TIMEOUT = 30 -- Cache mais curto para dados mais frescos
 local PLACE_ID = game.PlaceId
-local MAX_SERVERS = 100
-local REQUEST_DELAY = 1
+local MAX_SERVERS = 50 -- Focado em servidores com boa capacidade
+local REQUEST_DELAY = 0.5 -- Delay reduzido
 
--- Cache de fallback para quando a API falhar
-local fallbackCache = {}
-local lastFallbackUpdate = 0
-local FALLBACK_TIMEOUT = 300 -- 5 minutos
+-- Cache local para evitar chamadas desnecessárias à API
+local apiCache = {
+    data = {},
+    lastUpdate = 0,
+    cacheTime = 10 -- 10 segundos de cache da API
+}
 
--- ID único para cada instância do script (para identificar contas diferentes)
-local SESSION_ID = HttpService:GenerateGUID(false)
+-- Otimização: pré-filtrar servidores por ocupação
+local MIN_PLAYERS = 5  -- Mínimo de jogadores para evitar servidores vazios
+local MAX_OCCUPANCY = 0.8 -- Máximo 80% de ocupação
 
--- Coordenação entre múltiplas instâncias (usando DataStore ou arquivo compartilhado)
-local coordinationEnabled = false
-local sharedUsedServers = {}
-
-local function handleApiError(errorMsg)
-    warn("[hop] Erro na API: " .. tostring(errorMsg))
-    
-    -- Se o cache de fallback estiver atualizado, usar ele
-    if #fallbackCache > 0 and (tick() - lastFallbackUpdate < FALLBACK_TIMEOUT) then
-        print("[hop] Usando cache de fallback")
-        return fallbackCache
+local function fetchServersFast()
+    -- Usar cache local se ainda estiver válido
+    if tick() - apiCache.lastUpdate < apiCache.cacheTime and #apiCache.data > 0 then
+        return table.clone(apiCache.data)
     end
-    
-    return {}
-end
 
-local function fetchServers()
     local servers = {}
     local cursor = ""
     local serversFetched = 0
     local attempts = 0
-    local maxAttempts = 3
+    local maxAttempts = 2
     
     while serversFetched < MAX_SERVERS and attempts < maxAttempts do
         local url = "https://games.roblox.com/v1/games/"..PLACE_ID.."/servers/Public?sortOrder=Asc&limit=100"
@@ -51,14 +43,23 @@ local function fetchServers()
         end
         
         local success, result = pcall(function()
-            local response = game:HttpGet(url, true)
+            -- Headers para evitar rate limiting
+            local success, response = pcall(function()
+                return game:HttpGet(url, false) -- false para não usar enableHttpExceptions
+            end)
+            
+            if not success then
+                return nil
+            end
+            
             return HttpService:JSONDecode(response)
         end)
         
-        if not success then
+        if not success or not result then
             attempts += 1
-            warn("[hop] Tentativa " .. attempts .. " falhou, aguardando...")
-            task.wait(REQUEST_DELAY * 2)
+            if attempts < maxAttempts then
+                task.wait(REQUEST_DELAY * 3) -- Wait longer on failure
+            end
             continue
         end
         
@@ -68,183 +69,191 @@ local function fetchServers()
                     break
                 end
                 
-                local maxPlayers = tonumber(server.maxPlayers)
-                local playing = tonumber(server.playing)
+                local maxPlayers = tonumber(server.maxPlayers) or 0
+                local playing = tonumber(server.playing) or 0
                 local serverId = server.id
                 
-                if maxPlayers and playing and serverId and maxPlayers > playing then
-                    -- Verificar se o servidor já foi usado recentemente
-                    if not usedServers[serverId] then
+                -- Filtro mais eficiente: servidores com jogadores mas não lotados
+                if serverId and playing >= MIN_PLAYERS and maxPlayers > playing then
+                    local occupancy = playing / maxPlayers
+                    if occupancy <= MAX_OCCUPANCY then
                         table.insert(servers, {
                             id = serverId,
                             playing = playing,
-                            maxPlayers = maxPlayers
+                            maxPlayers = maxPlayers,
+                            occupancy = occupancy
                         })
                         serversFetched = serversFetched + 1
                     end
                 end
             end
             
-            -- Atualizar cache de fallback
+            -- Atualizar cache da API
             if #servers > 0 then
-                fallbackCache = table.clone(servers)
-                lastFallbackUpdate = tick()
+                apiCache.data = table.clone(servers)
+                apiCache.lastUpdate = tick()
             end
             
-            -- Verificar paginação
+            -- Paginação
             if result.nextPageCursor and serversFetched < MAX_SERVERS then
                 cursor = result.nextPageCursor
+                task.wait(REQUEST_DELAY)
             else
                 break
             end
         else
             attempts += 1
-            warn("[hop] Resposta inválida da API, tentativa " .. attempts)
         end
-        
-        task.wait(REQUEST_DELAY)
     end
     
-    if #servers == 0 and #fallbackCache > 0 then
-        print("[hop] Usando cache de fallback como backup")
-        return fallbackCache
-    end
-    
-    -- Ordenar servidores por ocupação (menos jogadores primeiro)
+    -- Ordenar por ocupação (menos ocupados primeiro)
     table.sort(servers, function(a, b)
-        return a.playing < b.playing
+        return a.occupancy < b.occupancy
     end)
     
     return servers
 end
 
--- Marcar servidor como usado
-local function markServerUsed(serverId)
-    usedServers[serverId] = tick()
-    
-    -- Limpar servidores antigos da lista de usados (após 5 minutos)
-    for id, timestamp in pairs(usedServers) do
-        if tick() - timestamp > 300 then
-            usedServers[id] = nil
-        end
-    end
-end
-
--- Estratégia de seleção de servidor
-local function selectBestServer(servers)
-    if #servers == 0 then
-        return nil
-    end
-    
-    -- Filtrar servidores não utilizados
-    local availableServers = {}
-    for _, server in ipairs(servers) do
-        if not usedServers[server.id] then
-            table.insert(availableServers, server)
-        end
-    end
-    
-    if #availableServers == 0 then
-        -- Se todos os servidores foram usados, escolher um aleatório
-        print("[hop] Todos os servidores foram utilizados, escolhendo aleatoriamente")
-        return servers[math.random(1, #servers)]
-    end
-    
-    -- Estratégia: escolher servidor com menos jogadores
-    table.sort(availableServers, function(a, b)
-        local occupancyA = a.playing / a.maxPlayers
-        local occupancyB = b.playing / b.maxPlayers
-        return occupancyA < occupancyB
-    end)
-    
-    -- Escolher entre os 3 melhores servidores para distribuir melhor
-    local topCount = math.min(3, #availableServers)
-    return availableServers[math.random(1, topCount)]
-end
-
 function module:Teleport(placeId)
     local targetPlaceId = placeId or PLACE_ID
     local teleportAttempts = 0
-    local maxTeleportAttempts = 50
+    local maxTeleportAttempts = 20 -- Menos tentativas, mais rápidas
     
-    -- Delay aleatório inicial para evitar sincronização
-    local initialDelay = math.random(1, 5)
-    print("[hop] Aguardando " .. initialDelay .. " segundos antes de iniciar...")
+    -- Delay inicial muito curto
+    local initialDelay = math.random(0.5, 2)
     task.wait(initialDelay)
     
     while teleportAttempts < maxTeleportAttempts do
-        -- Limpar cache se expirado
+        -- Buscar servidores se cache estiver vazio ou expirado
         if #cache == 0 or (tick() - lastFetch > CACHE_TIMEOUT) then
-            print("[hop] [" .. SESSION_ID .. "] Buscando servidores...")
-            cache = fetchServers()
+            cache = fetchServersFast()
             lastFetch = tick()
             
             if #cache == 0 then
-                warn("[hop] Nenhum servidor encontrado, tentando novamente em 15 segundos.")
-                task.wait(15)
+                warn("[hop] Nenhum servidor adequado encontrado, tentando novamente em 5 segundos.")
+                task.wait(5)
                 continue
-            else
-                print("[hop] Encontrados " .. #cache .. " servidores disponíveis")
             end
         end
 
-        local selectedServer = selectBestServer(cache)
+        -- Selecionar o melhor servidor disponível
+        local bestServer = nil
+        local bestIndex = 0
         
-        if selectedServer then
-            -- Remover servidor selecionado do cache
-            for i, server in ipairs(cache) do
-                if server.id == selectedServer.id then
-                    table.remove(cache, i)
-                    break
+        for i, server in ipairs(cache) do
+            if not usedServers[server.id] then
+                bestServer = server
+                bestIndex = i
+                break
+            end
+        end
+        
+        -- Se todos foram usados, escolher um aleatório
+        if not bestServer and #cache > 0 then
+            bestIndex = math.random(1, #cache)
+            bestServer = cache[bestIndex]
+            print("[hop] Reutilizando servidor (todos foram usados)")
+        end
+        
+        if bestServer then
+            -- Remover do cache
+            table.remove(cache, bestIndex)
+            
+            teleportAttempts += 1
+            
+            -- Marcar como usado (com timeout curto)
+            usedServers[bestServer.id] = tick()
+            
+            -- Limpar servidores antigos
+            for id, timestamp in pairs(usedServers) do
+                if tick() - timestamp > 180 then -- 3 minutos
+                    usedServers[id] = nil
                 end
             end
             
-            teleportAttempts += 1
-            print("[hop] Tentativa " .. teleportAttempts .. ": Teleportando para servidor " .. selectedServer.id .. " (" .. selectedServer.playing .. "/" .. selectedServer.maxPlayers .. " jogadores)")
-            
-            -- Marcar como usado antes do teleporte
-            markServerUsed(selectedServer.id)
-            
+            -- Tentativa de teleporte rápida
             local success, errorMsg = pcall(function()
-                TeleportService:TeleportToPlaceInstance(targetPlaceId, selectedServer.id, Players.LocalPlayer)
+                TeleportService:TeleportToPlaceInstance(targetPlaceId, bestServer.id, Players.LocalPlayer)
             end)
             
-            if not success then
-                warn("[hop] Erro no teleporte: " .. tostring(errorMsg))
-                -- Se falhou, remover da lista de usados para tentar novamente depois
-                usedServers[selectedServer.id] = nil
+            if success then
+                print("[hop] ✅ Teleporte iniciado para servidor com " .. bestServer.playing .. "/" .. bestServer.maxPlayers .. " jogadores")
+                return true
+            else
+                warn("[hop] ❌ Erro no teleporte: " .. tostring(errorMsg))
+                -- Não remover da lista de usados se falhou - pode ser um servidor problemático
             end
             
-            -- Aguardar antes da próxima tentativa (com jitter)
-            local baseWaitTime = math.min(3 + (teleportAttempts * 0.5), 10)
-            local jitter = math.random(1, 3) -- Adicionar variação
-            local waitTime = baseWaitTime + jitter
-            print("[hop] Aguardando " .. waitTime .. " segundos antes da próxima tentativa")
+            -- Wait muito curto entre tentativas
+            local waitTime = math.random(1, 3) -- 1-3 segundos
             task.wait(waitTime)
+            
         else
-            -- Nenhum servidor adequado encontrado
+            -- Cache vazio
             cache = {}
-            task.wait(6)
+            task.wait(2)
         end
     end
     
-    warn("[hop] Máximo de tentativas de teleporte atingido")
+    warn("[hop] ❌ Máximo de tentativas de teleporte atingido")
+    return false
 end
 
--- Função para forçar atualização do cache
+-- Versão ULTRA RÁPIDA - para quando velocidade é crítica
+function module:TeleportFast(placeId)
+    local targetPlaceId = placeId or PLACE_ID
+    
+    -- Buscar servidores uma vez
+    local servers = fetchServersFast()
+    if #servers == 0 then
+        warn("[hop] ❌ Nenhum servidor encontrado para teleporte rápido")
+        return false
+    end
+    
+    -- Tentar os 3 melhores servidores rapidamente
+    for i = 1, math.min(3, #servers) do
+        local server = servers[i]
+        
+        local success, errorMsg = pcall(function()
+            TeleportService:TeleportToPlaceInstance(targetPlaceId, server.id, Players.LocalPlayer)
+        end)
+        
+        if success then
+            print("[hop] ✅ Teleporte rápido realizado para servidor " .. server.id)
+            return true
+        else
+            warn("[hop] ❌ Falha rápida " .. i .. ": " .. tostring(errorMsg))
+            task.wait(0.5) -- Wait muito curto
+        end
+    end
+    
+    return false
+end
+
+-- Função para múltiplas contas com coordenação
+function module:TeleportWithCoordination(placeId, accountId)
+    local targetPlaceId = placeId or PLACE_ID
+    
+    -- Usar accountId para criar delays diferentes
+    local accountDelay = ((accountId or 1) - 1) * 2 -- 2 segundos entre cada conta
+    task.wait(accountDelay)
+    
+    return self:Teleport(targetPlaceId)
+end
+
+-- Funções utilitárias
 function module:RefreshCache()
     cache = {}
     lastFetch = 0
-    print("[hop] Cache forçado a atualizar")
+    apiCache.lastUpdate = 0
+    print("[hop] ♻️ Cache limpo")
 end
 
--- Função para limpar servidores usados
 function module:ClearUsedServers()
     usedServers = {}
-    print("[hop] Lista de servidores usados limpa")
+    print("[hop] 🗑️ Lista de servidores usados limpa")
 end
 
--- Função para obter estatísticas
 function module:GetStats()
     local usedCount = 0
     for _ in pairs(usedServers) do
@@ -253,10 +262,8 @@ function module:GetStats()
     
     return {
         cachedServers = #cache,
-        lastFetch = lastFetch,
-        fallbackServers = #fallbackCache,
-        usedServersCount = usedCount,
-        sessionId = SESSION_ID
+        usedServers = usedCount,
+        apiCacheAge = tick() - apiCache.lastUpdate
     }
 end
 
