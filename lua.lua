@@ -5,10 +5,10 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 
 -- ===== WEBHOOKS =====
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1424416294022807563/4zIQ6lind854v4kDzt7eHczFDuWcYUQ-M7NQQ9ZCP4jxD8uXjFGleIVAHi0IIAhDd2r-"
-local SPECIAL_WEBHOOK_URL = "https://discord.com/api/webhooks/1424416367431516311/mg-l7iEF9Xk3RFiVF-YKrFDL8JSVjXAFVFnNvuJ7x1nmZ2xMP9_1zIHJ9hJbuOmY4fGi"
-local ULTRA_HIGH_WEBHOOK_URL = "https://discord.com/api/webhooks/1424908273370529964/m17LNlQG1Nx33EzYZIcDePP7KsGT59teViuwybrMpFBxQHJPD1EglcB3z2Ye0qzlvKA7"
-local BRAINROT_150M_WEBHOOK_URL = "https://discord.com/api/webhooks/1424416592011464726/tQtnmJdAgKNSMX1bkAp8PdP9pws6bvoXKMwJWlPc0wkx2McMv4zmxwL6M9Pnw-VlOMEZ"
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1418388829160607778/tLZjaLoSwiEJ5RpiJyIVxlSYtUfOXCXuw4ips0hNBuNRsK-Ukrch4NXxubi-o8K3-hoR"
+local SPECIAL_WEBHOOK_URL = "https://discord.com/api/webhooks/1418386817820004403/-E0obGTbnxTFAfNTY_M06Ds05e1QEbQWtn3ROym1DETpE_Seo4sKnv--su-6oneCGaEu"
+local ULTRA_HIGH_WEBHOOK_URL = "https://discord.com/api/webhooks/1422547483762102362/ivlTOC9GhUbPNh5d_Ors6LgQB7selinPIam8pmDOtXvjmpiVc9n4Zb3aH7_FFnjDowwd"
+local BRAINROT_150M_WEBHOOK_URL = "https://discord.com/api/webhooks/1428822759055822889/ev1JC47smqJWa_0SaK3qQCd_ilBeCac0mlsaVUvdWE1KAjzuqX-DQZLaXSmZFDENXcKm"
 
 -- ===== CONFIGURAÇÃO =====
 local SERVER_SWITCH_INTERVAL = 2
@@ -714,3 +714,4 @@ end
 print("✅ Sistema iniciado!")
 
 coroutine.wrap(main)()
+
