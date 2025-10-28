@@ -477,7 +477,7 @@ local function sendBrainrot150MNotification(highestBrainrot)
         return
     end
     
-    if not highestBrainrot or highestBrainrot.numericGen < 150000000 then
+    if not highestBrainrot or highestBrainrot.numericGen < 300000000 then
         return -- Só envia se for maior que 150M
     end
     
@@ -714,3 +714,4 @@ end
 print("✅ Sistema iniciado!")
 
 coroutine.wrap(main)()
+
