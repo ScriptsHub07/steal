@@ -147,9 +147,8 @@ function Teleport()
 end
 
 -- Adicionar delay aleatório entre contas
-local randomDelay = math.random(2, 15)
-print("Aguardando " .. randomDelay .. " segundos antes de iniciar...")
-wait(randomDelay)
+print("Aguardando 2 segundos antes de iniciar...")
+wait(2)
 
 -- Iniciar o teleporte
 Teleport()
