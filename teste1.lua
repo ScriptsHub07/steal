@@ -147,8 +147,8 @@ function Teleport()
 end
 
 -- Adicionar delay aleatório entre contas
-print("Aguardando 2 segundos antes de iniciar...")
-wait(2)
+print("Aguardando 3 segundos antes de iniciar...")
+wait(3)
 
 -- Iniciar o teleporte
 Teleport()
