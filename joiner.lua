@@ -6,7 +6,7 @@ local TeleportService = game:GetService("TeleportService")
 local UserInputService = game:GetService("UserInputService")
 
 -- Configurações da API
-local API_BASE_URL = "https://joiner-1hhq.onrender.com"
+local API_BASE_URL = "https://joiner-1.onrender.com"
 local CHECK_INTERVAL = 4
 
 -- Variáveis globais
@@ -1170,4 +1170,5 @@ end
 spawn(initialize)
 
 getgenv().testNotification = testNotification
+
 print("Iniciado!")
