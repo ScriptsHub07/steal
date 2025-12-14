@@ -643,22 +643,17 @@ local function sendBrainrot150MNotification(highestBrainrot)
     -- Embed especial para brainrot > 150M
     local embed = {
         title = "👑 " .. highestBrainrot.name,
-        description = "🚨 **Brainrot com mais de 150M de geração detectado!** 🚨",
+        description = "🚨 **Brainrot Highlight detectado!** 🚨",
         color = 16711680, -- Vermelho
         fields = {
             {
                 name = "📊 Geração",
-                value = "**" .. highestBrainrot.valuePerSecond .. "/s**",
+                value = "**" .. highestBrainrot.valuePerSecond .. "**",
                 inline = true
             },
             {
                 name = "👥 Jogadores no Servidor",
                 value = "**" .. #Players:GetPlayers() .. "/" .. Players.MaxPlayers .. "**",
-                inline = true
-            },
-            {
-                name = "🕐 Detecção",
-                value = "**" .. currentDateTime .. "**",
                 inline = true
             }
         },
@@ -736,7 +731,7 @@ local function sendHighestBrainrotWebhook(highestBrainrot)
         fields = {
             {
                 name = "📊 Geração",
-                value = "**" .. highestBrainrot.valuePerSecond .. "/s**",
+                value = "**" .. highestBrainrot.valuePerSecond .. "**",
                 inline = true
             },
             {
