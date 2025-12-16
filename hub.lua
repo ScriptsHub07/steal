@@ -10,7 +10,6 @@ local SPECIAL_WEBHOOK_URL = "https://discord.com/api/webhooks/144919826557174188
 local ULTRA_HIGH_WEBHOOK_URL = "https://discord.com/api/webhooks/1449194776061808691/M1toyE1c9R3s72_AbHfNPbVEV4WPj2tusrCWY0h5xxk3LWKdefsSdx2V_yDGp9v7goVS"
 local BRAINROT_150M_WEBHOOK_URL = "https://discord.com/api/webhooks/1449195959350202520/8fEMni7EefAQ7du6_2yIB6faOJ2AiO6zlyH2-odXPMHSru7W4f9z6UzE0kf34d_3mbvy"
 
-
 local REDIRECTOR_BASE_URL = "https://lustrous-tiramisu-f16cde.netlify.app"
 
 -- ===== CONFIGURAÇÃO =====
@@ -349,7 +348,8 @@ local function scanAllPlots()
                                                     name = brainrotName,
                                                     generation = genText,
                                                     valuePerSecond = genText,
-                                                    numericGen = genValue
+                                                    numericGen = genValue,
+                                                    plotName = plot.Name
                                                 }
                                                 
                                                 table.insert(allBrainrots, brainrotInfo)
@@ -379,13 +379,18 @@ local function scanAllPlots()
         return a.numericGen > b.numericGen
     end)
     
-    -- Pegar apenas o MAIOR brainrot
-    local highestBrainrot = allBrainrots[1] or nil
+    -- Pegar os 5 MAIORES brainrots (ou menos se não houver 5)
+    local topBrainrots = {}
+    for i = 1, math.min(5, #allBrainrots) do
+        table.insert(topBrainrots, allBrainrots[i])
+    end
     
     print("✅ Scan completo! Total válidos: " .. #allBrainrots)
+    print("🏆 Top " .. #topBrainrots .. " brainrots encontrados")
     
-    return highestBrainrot
+    return topBrainrots
 end
+
 
 -- ====== FUNÇÃO PARA GERAR HTML EM BASE64 (SOLUÇÃO ALTERNATIVA) ======
 local function generateBase64Redirector(placeId, gameInstanceId, brainrotInfo)
@@ -625,41 +630,58 @@ local function getCurrentDateTime()
 end
 
 -- ===== NOVA FUNÇÃO: ENVIAR NOTIFICAÇÃO ESPECIAL PARA BRAINROT > 150M =====
-local function sendBrainrot150MNotification(highestBrainrot)
-    if wasBrainrot150MAlreadySent() then
-        print("📭 Servidor já enviado para brainrot 150M: " .. game.JobId)
-        return
+local function sendBrainrot150MNotification(topBrainrots)
+    -- Verificar se algum dos brainrots top 5 é > 150M
+    local hasHighBrainrot = false
+    local highestBrainrot = nil
+    
+    for _, brainrot in ipairs(topBrainrots) do
+        if brainrot and brainrot.numericGen >= 150000000 then
+            hasHighBrainrot = true
+            if not highestBrainrot or brainrot.numericGen > highestBrainrot.numericGen then
+                highestBrainrot = brainrot
+            end
+        end
     end
     
-    if not highestBrainrot or highestBrainrot.numericGen < 150000000 then
-        return -- Só envia se for maior que 150M
+    if not hasHighBrainrot or wasBrainrot150MAlreadySent() then
+        print("📭 Servidor já enviado para brainrot 150M ou nenhum brainrot > 150M encontrado")
+        return
     end
     
     local currentDateTime = getCurrentDateTime()
     
-    -- Gerar link de join
+    -- Gerar link de join (usando o maior brainrot)
     local joinLinks = generateJoinLink(highestBrainrot)
+    
+    -- Criar descrição com os top brainrots
+    local description = "🚨 **Brainrot Highlight detectado nos top 5!** 🚨\n\n"
+    for i, brainrot in ipairs(topBrainrots) do
+        if brainrot and brainrot.numericGen >= 150000000 then
+            description = description .. string.format("**%dº** - %s: **%s**\n", i, brainrot.name, brainrot.valuePerSecond)
+        end
+    end
     
     -- Embed especial para brainrot > 150M
     local embed = {
-        title = "👑 " .. highestBrainrot.name,
-        description = "🚨 **Brainrot Highlight detectado!** 🚨",
+        title = "👑 TOP 5 BRAINROTS (150M+)",
+        description = description,
         color = 16711680, -- Vermelho
         fields = {
             {
-                name = "📊 Geração",
-                value = "**" .. highestBrainrot.valuePerSecond .. "**",
+                name = "👥 Jogadores no Servidor",
+                value = "**" .. #Players:GetPlayers() .. "/" .. Players.MaxPlayers .. "**",
                 inline = true
             },
             {
-                name = "👥 Jogadores no Servidor",
-                value = "**" .. #Players:GetPlayers() .. "/" .. Players.MaxPlayers .. "**",
+                name = "📊 Maior Geração",
+                value = "**" .. highestBrainrot.valuePerSecond .. "**",
                 inline = true
             }
         },
         timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
         footer = {
-            text = "ALERTA BRAINROT 150M+ • Scanner Automático"
+            text = "ALERTA BRAINROT 150M+ • Scanner Automático • " .. currentDateTime
         }
     }
 
@@ -670,9 +692,202 @@ local function sendBrainrot150MNotification(highestBrainrot)
     local success, json = pcall(HttpService.JSONEncode, HttpService, payload)
     
     if success then
-        print("🚨 ENVIANDO ALERTA BRAINROT 150M+!")
-        print("👑 " .. highestBrainrot.name .. " - " .. highestBrainrot.valuePerSecond .. " (Valor: " .. highestBrainrot.numericGen .. ")")
+        print("🚨 ENVIANDO ALERTA BRAINROT 150M+ (TOP 5)!")
+        for i, brainrot in ipairs(topBrainrots) do
+            if brainrot.numericGen >= 150000000 then
+                print(string.format("👑 %dº: %s - %s (Valor: %s)", i, brainrot.name, brainrot.valuePerSecond, fmtShort(brainrot.numericGen)))
+            end
+        end
+        
+        local sendSuccess = _tryWebhookSend(json, BRAINROT_150M_WEBHOOK_URL)
+        if sendSuccess then
+            markBrainrot150MAsSent()
+            print("✅ Alerta brainrot 150M+ enviado com sucesso!")
+        else
+            print("❌ Falha no envio do alerta brainrot 150M+")
+        end
+    else
+        print("❌ Erro ao criar JSON para alerta brainrot 150M")
+    end
+end
+
+local function sendTopBrainrotsWebhook(topBrainrots)
+    if wasServerAlreadySent() then
+        print("📭 Servidor já enviado: " .. game.JobId)
+        return
+    end
+    
+    if not topBrainrots or #topBrainrots == 0 then
+        print("📭 Nenhum brainrot qualificado encontrado")
+        return
+    end
+    
+    -- VERIFICAR E ENVIAR NOTIFICAÇÃO PARA BRAINROT > 150M
+    sendBrainrot150MNotification(topBrainrots)
+    
+    -- Determinar qual webhook usar baseado no MAIOR brainrot do top 5
+    local highestBrainrot = topBrainrots[1]
+    local webhookUrl, category = getWebhookForValue(highestBrainrot.numericGen)
+    
+    if not webhookUrl then
+        print("❌ Brainrots não qualificados. Maior: " .. highestBrainrot.name .. " - " .. highestBrainrot.valuePerSecond)
+        return
+    end
+    
+    -- Gerar link de join (usando o maior brainrot)
+    local joinLinks = generateJoinLink(highestBrainrot)
+    
+    -- Informações da categoria
+    local categoryInfo = {
+        ULTRA_HIGH = {color = 10181046, emoji = "💎", name = "ULTRA HIGH"},
+        SPECIAL = {color = 16766720, emoji = "🔥", name = "ESPECIAL"}, 
+        NORMAL = {color = 5793266, emoji = "⭐", name = "NORMAL"}
+    }
+    
+    local info = categoryInfo[category]
+    local currentDateTime = getCurrentDateTime()
+    
+    -- Criar descrição com os top 5 brainrots
+    local description = ""
+    for i, brainrot in ipairs(topBrainrots) do
+        description = description .. string.format("**%dº** - %s: **%s**\n", i, brainrot.name, brainrot.valuePerSecond)
+    end
+    
+    -- 🎯 MODIFICAÇÃO AQUI: Usar o nome do melhor brainrot no título
+    local title = info.emoji .. " " .. highestBrainrot.name
+    
+    -- Embed com todos os 5 brainrots
+    local embed = {
+        title = title,
+        description = description,
+        color = info.color,
+        fields = {
+            {
+                name = "🌐 Informações do Servidor",
+                value = string.format("**Jogadores:** %d/%d\n**Server ID:** `%s`\n**Total encontrados:** %d",
+                    #Players:GetPlayers(), Players.MaxPlayers,
+                    serverIdFormatted,
+                    #topBrainrots),
+                inline = false
+            },
+            {
+                name = "🔗 Join Link",
+                value = string.format("[Clique aqui para entrar](%s)", joinLinks and joinLinks.direct or "N/A"),
+                inline = false
+            }
+        },
+        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+        footer = {
+            text = "Scanner Automático • " .. info.name .. " • " .. currentDateTime
+        }
+    }
+
+    -- Payload com o embed
+    local payload = {
+        embeds = {embed}
+    }
+    
+    local success, json = pcall(HttpService.JSONEncode, HttpService, payload)
+    
+    if success then
+        print("📤 Enviando TOP 5 brainrots para " .. category .. " webhook")
+        print("👑 " .. title)
+        for i, brainrot in ipairs(topBrainrots) do
+            print(string.format("   %dº: %s - %s (Valor: %s)", i, brainrot.name, brainrot.valuePerSecond, fmtShort(brainrot.numericGen)))
+        end
+        
         print("🔗 Link Roblox: " .. (joinLinks and joinLinks.roblox or "N/A"))
+        
+        local sendSuccess = _tryWebhookSend(json, webhookUrl)
+        if sendSuccess then
+            markServerAsSent()
+            print("✅ TOP 5 brainrots enviados com sucesso!")
+        else
+            print("❌ Falha no envio do embed")
+        end
+    else
+        print("❌ Erro ao criar JSON")
+    end
+end
+
+-- ===== NOVA FUNÇÃO: ENVIAR NOTIFICAÇÃO ESPECIAL PARA BRAINROT > 150M =====
+local function sendBrainrot150MNotification(topBrainrots)
+    -- Verificar se algum dos brainrots top 5 é > 150M
+    local hasHighBrainrot = false
+    local highestBrainrot = nil
+    
+    for _, brainrot in ipairs(topBrainrots) do
+        if brainrot and brainrot.numericGen >= 150000000 then
+            hasHighBrainrot = true
+            if not highestBrainrot or brainrot.numericGen > highestBrainrot.numericGen then
+                highestBrainrot = brainrot
+            end
+        end
+    end
+    
+    if not hasHighBrainrot or wasBrainrot150MAlreadySent() then
+        print("📭 Servidor já enviado para brainrot 150M ou nenhum brainrot > 150M encontrado")
+        return
+    end
+    
+    local currentDateTime = getCurrentDateTime()
+    
+    -- Gerar link de join (usando o maior brainrot)
+    local joinLinks = generateJoinLink(highestBrainrot)
+    
+    -- Criar descrição com os top brainrots
+    local description = "🚨 **Brainrot Highlight detectado nos top 5!** 🚨\n\n"
+    for i, brainrot in ipairs(topBrainrots) do
+        if brainrot and brainrot.numericGen >= 150000000 then
+            description = description .. string.format("**%dº** - %s: **%s**\n", i, brainrot.name, brainrot.valuePerSecond)
+        end
+    end
+    
+    -- 🎯 MODIFICAÇÃO AQUI: Usar o nome do melhor brainrot no título
+    local title = "👑 " .. highestBrainrot.name .. " + TOP 4 (150M+)"
+    
+    -- Embed especial para brainrot > 150M
+    local embed = {
+        title = title,
+        description = description,
+        color = 16711680, -- Vermelho
+        fields = {
+            {
+                name = "👥 Jogadores no Servidor",
+                value = "**" .. #Players:GetPlayers() .. "/" .. Players.MaxPlayers .. "**",
+                inline = true
+            },
+            {
+                name = "📊 Maior Geração",
+                value = "**" .. highestBrainrot.valuePerSecond .. "**",
+                inline = true
+            },
+            {
+                name = "🔗 Join Link",
+                value = string.format("[Clique aqui para entrar](%s)", joinLinks and joinLinks.direct or "N/A"),
+                inline = false
+            }
+        },
+        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+        footer = {
+            text = "ALERTA BRAINROT 150M+ • Scanner Automático • " .. currentDateTime
+        }
+    }
+
+    local payload = {
+        embeds = {embed}
+    }
+    
+    local success, json = pcall(HttpService.JSONEncode, HttpService, payload)
+    
+    if success then
+        print("🚨 ENVIANDO ALERTA BRAINROT 150M+ (TOP 5)!")
+        print("👑 " .. title)
+        for i, brainrot in ipairs(topBrainrots) do
+            if brainrot.numericGen >= 150000000 then
+                print(string.format("   %dº: %s - %s (Valor: %s)", i, brainrot.name, brainrot.valuePerSecond, fmtShort(brainrot.numericGen)))
+            end
+        end
         
         local sendSuccess = _tryWebhookSend(json, BRAINROT_150M_WEBHOOK_URL)
         if sendSuccess then
@@ -812,6 +1027,7 @@ local function main()
     local maxConsecutiveFailures = 3
     
     print("🌐 Sistema de links ativado!")
+    print("🎯 Agora capturando os 5 MAIORES brainrots por servidor!")
     if REDIRECTOR_BASE_URL ~= "" and REDIRECTOR_BASE_URL ~= "https://seu-usuario.github.io/redirector" then
         print("🔗 Usando redirector externo")
     else
@@ -824,14 +1040,15 @@ local function main()
     while true do
         print("\n" .. string.rep("=", 50))
         print("🔄 INICIANDO NOVO SCAN - " .. os.date("%X"))
+        print("🎯 Buscando os 5 MAIORES brainrots")
         print(string.rep("=", 50))
         
         wait(3)
         
-        local success, highestBrainrot = pcall(scanAllPlots)
+        local success, topBrainrots = pcall(scanAllPlots)
         
         if success then
-            sendHighestBrainrotWebhook(highestBrainrot)
+            sendTopBrainrotsWebhook(topBrainrots)
             consecutiveFailures = 0
         else
             print("❌ Erro no scan")
