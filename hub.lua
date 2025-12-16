@@ -769,11 +769,6 @@ local function sendTopBrainrotsWebhook(topBrainrots)
                     serverIdFormatted,
                     #topBrainrots),
                 inline = false
-            },
-            {
-                name = "🔗 Join Link",
-                value = string.format("[Clique aqui para entrar](%s)", joinLinks and joinLinks.direct or "N/A"),
-                inline = false
             }
         },
         timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
@@ -861,11 +856,6 @@ local function sendBrainrot150MNotification(topBrainrots)
                 name = "📊 Maior Geração",
                 value = "**" .. highestBrainrot.valuePerSecond .. "**",
                 inline = true
-            },
-            {
-                name = "🔗 Join Link",
-                value = string.format("[Clique aqui para entrar](%s)", joinLinks and joinLinks.direct or "N/A"),
-                inline = false
             }
         },
         timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
