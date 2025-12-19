@@ -1,6 +1,3 @@
--- Futuristic Purple/Black UI Library v1.0
--- Pressione "K" para minimizar/maximizar
-
 local UILibrary = {}
 
 -- Configurações
