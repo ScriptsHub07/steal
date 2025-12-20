@@ -148,7 +148,7 @@ end
 
 -- Adicionar delay aleatório entre contas
 print("Aguardando 1 segundo antes de iniciar...")
-wait(1)
+wait(2)
 
 -- Iniciar o teleporte
 Teleport()
