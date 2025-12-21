@@ -146,230 +146,140 @@ local function fmtShort(n)
     end
 end
 
--- ===== FUNÇÃO PARA OBTER TODAS AS PLOTS =====
-local function getAllPlots()
-    local plots = {}
-    
-    local plotsFolder = Workspace:FindFirstChild("Plots")
-    if plotsFolder then
-        for _, plot in pairs(plotsFolder:GetChildren()) do
-            if plot:FindFirstChild("AnimalPodiums") then
-                table.insert(plots, plot)
-            end
-        end
-    end
-    
-    for _, obj in pairs(Workspace:GetChildren()) do
-        if obj.Name:find("Plot") or obj.Name:find("plot") then
-            if not table.find(plots, obj) and obj:FindFirstChild("AnimalPodiums") then
-                table.insert(plots, obj)
-            end
-        end
-    end
-    
-    return plots
-end
-
--- ===== FUNÇÃO CORRIGIDA PARA CONVERTER APENAS VALORES VÁLIDOS =====
-local function textToNumber(text)
-    if not text then return 0 end
-    
-    print("🔍 Analisando: '" .. tostring(text) .. "'")
-    
-    -- Verificar se é um formato válido de geração (deve ter /s ou k/M/B)
-    local hasValidFormat = text:find("/s") or text:find("k") or text:find("M") or text:find("B") or text:find("T")
-    if not hasValidFormat then
-        print("❌ Formato inválido para geração")
-        return 0
-    end
-    
-    -- Limpar o texto
-    local cleanText = tostring(text):gsub("%$", ""):gsub("/s", ""):gsub(" ", ""):gsub(",", "")
-    
-    print("🔍 Texto limpo: '" .. cleanText .. "'")
-    
-    -- Verificar padrões na ordem de prioridade (do maior para o menor)
-    
-    -- 1. Padrão com "T" (Trilhões)
-    if cleanText:find("T") then
-        local numStr = cleanText:gsub("T", "")
-        local num = tonumber(numStr)
-        if num then
-            local result = num * 1000000000000
-            print("💰 Convertido T: " .. numStr .. "T → " .. result)
-            return result
-        end
-    end
-    
-    -- 2. Padrão com "B" (Bilhões)
-    if cleanText:find("B") then
-        local numStr = cleanText:gsub("B", "")
-        local num = tonumber(numStr)
-        if num then
-            local result = num * 1000000000
-            print("💰 Convertido B: " .. numStr .. "B → " .. result)
-            return result
-        end
-    end
-    
-    -- 3. Padrão com "M" (Milhões)
-    if cleanText:find("M") then
-        local numStr = cleanText:gsub("M", "")
-        local num = tonumber(numStr)
-        if num then
-            local result = num * 1000000
-            print("💰 Convertido M: " .. numStr .. "M → " .. result)
-            return result
-        end
-    end
-    
-    -- 4. Padrão com "k" (Milhares)
-    if cleanText:find("k") then
-        local numStr = cleanText:gsub("k", "")
-        local num = tonumber(numStr)
-        if num then
-            local result = num * 1000
-            print("💰 Convertido k: " .. numStr .. "k → " .. result)
-            return result
-        end
-    end
-    
-    -- 5. Se chegou aqui e tem /s, tentar número direto
-    if text:find("/s") then
-        local num = tonumber(cleanText)
-        if num then
-            print("💰 Número direto com /s: " .. num)
-            return num
-        end
-    end
-    
-    print("❌ Não foi possível converter valor de geração")
-    return 0
-end
-
--- ===== FUNÇÃO MELHORADA PARA ENCONTRAR APENAS GERAÇÕES REAIS =====
-local function getBrainrotGeneration(animalOverhead)
-    if not animalOverhead then return 0, "0" end
-    
-    -- PRIMEIRO: Procurar apenas pelo label "Generation" (mais confiável)
-    local generationLabel = animalOverhead:FindFirstChild("Generation")
-    if generationLabel and generationLabel:IsA("TextLabel") and generationLabel.Text and generationLabel.Text ~= "" then
-        local text = generationLabel.Text
-        print("🏷️ Label 'Generation' encontrado: '" .. text .. "'")
-        
-        local numericValue = textToNumber(text)
-        if numericValue > 0 then
-            print("✅ Geração real encontrada: " .. text .. " → " .. numericValue)
-            return numericValue, text
-        end
-    end
-    
-    -- SEGUNDO: Procurar por "ValuePerSecond" 
-    local valueLabel = animalOverhead:FindFirstChild("ValuePerSecond")
-    if valueLabel and valueLabel:IsA("TextLabel") and valueLabel.Text and valueLabel.Text ~= "" then
-        local text = valueLabel.Text
-        print("🏷️ Label 'ValuePerSecond' encontrado: '" .. text .. "'")
-        
-        local numericValue = textToNumber(text)
-        if numericValue > 0 then
-            print("✅ Valor por segundo encontrado: " .. text .. " → " .. numericValue)
-            return numericValue, text
-        end
-    end
-    
-    -- TERCEIRO: Procurar por "GPS" 
-    local gpsLabel = animalOverhead:FindFirstChild("GPS")
-    if gpsLabel and gpsLabel:IsA("TextLabel") and gpsLabel.Text and gpsLabel.Text ~= "" then
-        local text = gpsLabel.Text
-        print("🏷️ Label 'GPS' encontrado: '" .. text .. "'")
-        
-        local numericValue = textToNumber(text)
-        if numericValue > 0 then
-            print("✅ GPS encontrado: " .. text .. " → " .. numericValue)
-            return numericValue, text
-        end
-    end
-    
-    -- QUARTO: Procurar por "MoneyPerSecond"
-    local moneyLabel = animalOverhead:FindFirstChild("MoneyPerSecond")
-    if moneyLabel and moneyLabel:IsA("TextLabel") and moneyLabel.Text and moneyLabel.Text ~= "" then
-        local text = moneyLabel.Text
-        print("🏷️ Label 'MoneyPerSecond' encontrado: '" .. text .. "'")
-        
-        local numericValue = textToNumber(text)
-        if numericValue > 0 then
-            print("✅ MoneyPerSecond encontrado: " .. text .. " → " .. numericValue)
-            return numericValue, text
-        end
-    end
-    
-    -- NÃO procurar em labels genéricos para evitar falsos positivos
-    print("❌ Nenhum label de geração válido encontrado")
-    return 0, "0"
-end
-
--- ===== FUNÇÃO PRINCIPAL DE SCAN =====
-local function scanAllPlots()
+-- ===== FUNÇÃO ATUALIZADA PARA SCANEAR FASTOVERHEADTEMPLATE =====
+local function scanAllFastOverheadTemplates()
     local allBrainrots = {}
     
-    print("🔍 Iniciando scan do servidor...")
-    local plots = getAllPlots()
+    print("🔍 Iniciando scan do servidor (FastOverheadTemplate)...")
     
-    print("📊 Plots encontradas: " .. #plots)
+    -- Verificar se a pasta Debris existe
+    local debrisFolder = Workspace:FindFirstChild("Debris")
+    if not debrisFolder then
+        print("❌ Pasta Debris não encontrada!")
+        return {}
+    end
     
-    for _, plot in pairs(plots) do
-        local animalPodiums = plot:FindFirstChild("AnimalPodiums")
-        if animalPodiums then
-            for i = 1, 20 do
-                local success, errorMsg = pcall(function()
-                    local podium = animalPodiums:FindFirstChild(tostring(i))
-                    if podium then
-                        local base = podium:FindFirstChild("Base")
-                        if base then
-                            local spawn = base:FindFirstChild("Spawn")
-                            if spawn then
-                                local attachment = spawn:FindFirstChild("Attachment")
-                                if attachment then
-                                    local animalOverhead = attachment:FindFirstChild("AnimalOverhead")
-                                    if animalOverhead then
-                                        local brainrotName = "Unknown"
-                                        local displayName = animalOverhead:FindFirstChild("DisplayName")
-                                        if displayName and displayName:IsA("TextLabel") then
-                                            brainrotName = displayName.Text or "Unknown"
-                                        end
-                                        
-                                        local genValue, genText = getBrainrotGeneration(animalOverhead)
-                                        
-                                        -- VALIDAÇÃO ADICIONAL: só aceitar se for um valor realista
-                                        if brainrotName ~= "Unknown" and brainrotName ~= "" and genValue > 0 then
-                                            -- Verificar se o valor é realista (não muito alto para evitar falsos positivos)
-                                            if genValue <= 1000000000000 then -- Máximo 1T (evitar valores absurdos)
-                                                local brainrotInfo = {
-                                                    name = brainrotName,
-                                                    generation = genText,
-                                                    valuePerSecond = genText,
-                                                    numericGen = genValue,
-                                                    plotName = plot.Name
-                                                }
-                                                
-                                                table.insert(allBrainrots, brainrotInfo)
-                                                print("    ✅ " .. brainrotName .. " - " .. genText .. " (Valor: " .. genValue .. ")")
-                                            else
-                                                print("    ⚠️ " .. brainrotName .. " - VALOR MUITO ALTO (possível falso positivo): " .. genValue)
-                                            end
-                                        else
-                                            print("    ⚠️ " .. brainrotName .. " - SEM GERAÇÃO VÁLIDA")
-                                        end
-                                    end
-                                end
-                            end
+    -- Contar quantos FastOverheadTemplate existem
+    local templateCount = 0
+    for _, item in pairs(debrisFolder:GetChildren()) do
+        if item:IsA("Part") and item.Name == "FastOverheadTemplate" then
+            templateCount = templateCount + 1
+        end
+    end
+    
+    print("📊 FastOverheadTemplate encontrados: " .. templateCount)
+    
+    -- Scanear cada FastOverheadTemplate
+    local scannedCount = 0
+    for _, template in pairs(debrisFolder:GetChildren()) do
+        if template:IsA("Part") and template.Name == "FastOverheadTemplate" then
+            scannedCount = scannedCount + 1
+            
+            print("🔎 Scan template " .. scannedCount)
+            
+            -- Procurar pela GUI dentro do template
+            local gui = template:FindFirstChild("GUI")
+            if gui then
+                print("   ✅ GUI encontrada")
+                
+                -- Tentar obter o nome do brainrot de DisplayName
+                local brainrotName = "Unknown"
+                local displayName = gui:FindFirstChild("DisplayName")
+                if displayName and displayName:IsA("TextLabel") then
+                    brainrotName = displayName.Text or "Unknown"
+                    print("   📝 DisplayName: " .. brainrotName)
+                else
+                    print("   ❌ DisplayName não encontrado ou não é TextLabel")
+                    -- Tentar encontrar DisplayName em outros lugares
+                    for _, child in pairs(gui:GetDescendants()) do
+                        if child:IsA("TextLabel") and child.Name == "DisplayName" then
+                            brainrotName = child.Text or "Unknown"
+                            print("   📝 DisplayName (encontrado em descendentes): " .. brainrotName)
+                            break
                         end
                     end
-                end)
-                
-                if not success then
-                    print("    ❌ ERRO no podium " .. i .. ": " .. tostring(errorMsg))
                 end
+                
+                -- Tentar obter a geração do brainrot de Generation
+                local genValue = 0
+                local genText = "0/s"
+                local generation = gui:FindFirstChild("Generation")
+                if generation and generation:IsA("TextLabel") then
+                    genText = generation.Text or "0/s"
+                    print("   💰 Generation: " .. genText)
+                else
+                    print("   ❌ Generation não encontrado ou não é TextLabel")
+                    -- Tentar encontrar Generation em outros lugares
+                    for _, child in pairs(gui:GetDescendants()) do
+                        if child:IsA("TextLabel") and child.Name == "Generation" then
+                            genText = child.Text or "0/s"
+                            print("   💰 Generation (encontrado em descendentes): " .. genText)
+                            break
+                        end
+                    end
+                end
+                
+                -- Converter texto para número
+                if genText:find("/s") then
+                    local cleanText = genText:gsub("%$", ""):gsub("/s", ""):gsub(" ", ""):gsub(",", "")
+                    
+                    -- Converter valores com k, M, B, T
+                    if cleanText:find("T") then
+                        local numStr = cleanText:gsub("T", "")
+                        local num = tonumber(numStr)
+                        if num then 
+                            genValue = num * 1000000000000
+                            print("   🔢 Convertido T: " .. numStr .. "T → " .. genValue)
+                        end
+                    elseif cleanText:find("B") then
+                        local numStr = cleanText:gsub("B", "")
+                        local num = tonumber(numStr)
+                        if num then 
+                            genValue = num * 1000000000
+                            print("   🔢 Convertido B: " .. numStr .. "B → " .. genValue)
+                        end
+                    elseif cleanText:find("M") then
+                        local numStr = cleanText:gsub("M", "")
+                        local num = tonumber(numStr)
+                        if num then 
+                            genValue = num * 1000000
+                            print("   🔢 Convertido M: " .. numStr .. "M → " .. genValue)
+                        end
+                    elseif cleanText:find("k") then
+                        local numStr = cleanText:gsub("k", "")
+                        local num = tonumber(numStr)
+                        if num then 
+                            genValue = num * 1000
+                            print("   🔢 Convertido k: " .. numStr .. "k → " .. genValue)
+                        end
+                    else
+                        genValue = tonumber(cleanText) or 0
+                        print("   🔢 Número direto: " .. genValue)
+                    end
+                end
+                
+                -- Adicionar à lista se for válido
+                if brainrotName ~= "Unknown" and genValue > 0 then
+                    local brainrotInfo = {
+                        name = brainrotName,
+                        generation = genText,
+                        valuePerSecond = genText,
+                        numericGen = genValue,
+                        templateId = scannedCount
+                    }
+                    
+                    table.insert(allBrainrots, brainrotInfo)
+                    print("    ✅ Template " .. scannedCount .. ": " .. brainrotName .. " - " .. genText .. " (Valor: " .. fmtShort(genValue) .. ")")
+                else
+                    if brainrotName == "Unknown" then
+                        print("    ⚠️  Template " .. scannedCount .. ": Nome não encontrado")
+                    end
+                    if genValue <= 0 then
+                        print("    ⚠️  Template " .. scannedCount .. ": Geração inválida (" .. genText .. ")")
+                    end
+                end
+            else
+                print("    ❌ Template " .. scannedCount .. ": GUI não encontrada")
             end
         end
     end
@@ -391,10 +301,8 @@ local function scanAllPlots()
     return topBrainrots
 end
 
-
--- ====== FUNÇÃO PARA GERAR HTML EM BASE64 (SOLUÇÃO ALTERNATIVA) ======
+-- ====== FUNÇÃO PARA GERAR HTML EM BASE64 ======
 local function generateBase64Redirector(placeId, gameInstanceId, brainrotInfo)
-    -- Criar HTML simples com redirecionamento
     local html = string.format([[
 <!DOCTYPE html>
 <html>
@@ -457,7 +365,6 @@ local function generateBase64Redirector(placeId, gameInstanceId, brainrotInfo)
             document.getElementById('generation').textContent = generation;
             
             if (placeId && gameInstanceId) {
-                // Tentar abrir no app Roblox
                 const robloxUrl = 'roblox://placeID=' + placeId + '&gameInstanceId=' + gameInstanceId;
                 const webUrl = 'https://www.roblox.com/games/' + placeId + '?gameInstanceId=' + gameInstanceId;
                 
@@ -468,7 +375,6 @@ local function generateBase64Redirector(placeId, gameInstanceId, brainrotInfo)
                     }, 1000);
                 };
                 
-                // Redirecionar automaticamente após 3 segundos
                 setTimeout(function() {
                     window.location.href = robloxUrl;
                 }, 3000);
@@ -494,7 +400,6 @@ local function generateBase64Redirector(placeId, gameInstanceId, brainrotInfo)
        brainrotInfo and brainrotInfo.name or "Unknown", 
        brainrotInfo and brainrotInfo.valuePerSecond or "0/s")
     
-    -- Converter para Base64 (formato URL seguro)
     return game:GetService("HttpService"):Base64Encode(html)
 end
 
@@ -507,7 +412,6 @@ local function generateJoinLink(brainrotInfo)
         return nil
     end
     
-    -- Método 1: Usar redirector externo (se configurado)
     if REDIRECTOR_BASE_URL ~= "" and REDIRECTOR_BASE_URL ~= "https://seu-usuario.github.io/redirector" then
         local params = {
             placeId = placeId,
@@ -531,7 +435,6 @@ local function generateJoinLink(brainrotInfo)
         }
     end
     
-    -- Método 2: Usar data URLs (funciona em navegadores modernos)
     local htmlBase64 = generateBase64Redirector(placeId, gameInstanceId, brainrotInfo)
     local dataUrl = "data:text/html;base64," .. htmlBase64
     
@@ -629,9 +532,8 @@ local function getCurrentDateTime()
         dateTable.hour, dateTable.min, dateTable.sec)
 end
 
--- ===== NOVA FUNÇÃO: ENVIAR NOTIFICAÇÃO ESPECIAL PARA BRAINROT > 150M =====
+-- ===== FUNÇÃO PARA ENVIAR NOTIFICAÇÃO ESPECIAL PARA BRAINROT > 150M =====
 local function sendBrainrot150MNotification(topBrainrots)
-    -- Verificar se algum dos brainrots top 5 é > 150M
     local hasHighBrainrot = false
     local highestBrainrot = nil
     
@@ -650,11 +552,8 @@ local function sendBrainrot150MNotification(topBrainrots)
     end
     
     local currentDateTime = getCurrentDateTime()
-    
-    -- Gerar link de join (usando o maior brainrot)
     local joinLinks = generateJoinLink(highestBrainrot)
     
-    -- Criar descrição com os top brainrots
     local description = "🚨 **Brainrot Highlight detectado nos top 5!** 🚨\n\n"
     for i, brainrot in ipairs(topBrainrots) do
         if brainrot and brainrot.numericGen >= 150000000 then
@@ -662,186 +561,8 @@ local function sendBrainrot150MNotification(topBrainrots)
         end
     end
     
-    -- Embed especial para brainrot > 150M
-    local embed = {
-        title = "👑 TOP 5 BRAINROTS (150M+)",
-        description = description,
-        color = 16711680, -- Vermelho
-        fields = {
-            {
-                name = "👥 Jogadores no Servidor",
-                value = "**" .. #Players:GetPlayers() .. "/" .. Players.MaxPlayers .. "**",
-                inline = true
-            },
-            {
-                name = "📊 Maior Geração",
-                value = "**" .. highestBrainrot.valuePerSecond .. "**",
-                inline = true
-            }
-        },
-        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-        footer = {
-            text = "ALERTA BRAINROT 150M+ • Scanner Automático • " .. currentDateTime
-        }
-    }
-
-    local payload = {
-        embeds = {embed}
-    }
-    
-    local success, json = pcall(HttpService.JSONEncode, HttpService, payload)
-    
-    if success then
-        print("🚨 ENVIANDO ALERTA BRAINROT 150M+ (TOP 5)!")
-        for i, brainrot in ipairs(topBrainrots) do
-            if brainrot.numericGen >= 150000000 then
-                print(string.format("👑 %dº: %s - %s (Valor: %s)", i, brainrot.name, brainrot.valuePerSecond, fmtShort(brainrot.numericGen)))
-            end
-        end
-        
-        local sendSuccess = _tryWebhookSend(json, BRAINROT_150M_WEBHOOK_URL)
-        if sendSuccess then
-            markBrainrot150MAsSent()
-            print("✅ Alerta brainrot 150M+ enviado com sucesso!")
-        else
-            print("❌ Falha no envio do alerta brainrot 150M+")
-        end
-    else
-        print("❌ Erro ao criar JSON para alerta brainrot 150M")
-    end
-end
-
-local function sendTopBrainrotsWebhook(topBrainrots)
-    if wasServerAlreadySent() then
-        print("📭 Servidor já enviado: " .. game.JobId)
-        return
-    end
-    
-    if not topBrainrots or #topBrainrots == 0 then
-        print("📭 Nenhum brainrot qualificado encontrado")
-        return
-    end
-    
-    -- VERIFICAR E ENVIAR NOTIFICAÇÃO PARA BRAINROT > 150M
-    sendBrainrot150MNotification(topBrainrots)
-    
-    -- Determinar qual webhook usar baseado no MAIOR brainrot do top 5
-    local highestBrainrot = topBrainrots[1]
-    local webhookUrl, category = getWebhookForValue(highestBrainrot.numericGen)
-    
-    if not webhookUrl then
-        print("❌ Brainrots não qualificados. Maior: " .. highestBrainrot.name .. " - " .. highestBrainrot.valuePerSecond)
-        return
-    end
-    
-    -- Gerar link de join (usando o maior brainrot)
-    local joinLinks = generateJoinLink(highestBrainrot)
-    
-    -- Informações da categoria
-    local categoryInfo = {
-        ULTRA_HIGH = {color = 10181046, emoji = "💎", name = "ULTRA HIGH"},
-        SPECIAL = {color = 16766720, emoji = "🔥", name = "ESPECIAL"}, 
-        NORMAL = {color = 5793266, emoji = "⭐", name = "NORMAL"}
-    }
-    
-    local info = categoryInfo[category]
-    local currentDateTime = getCurrentDateTime()
-    
-    -- Criar descrição com os top 5 brainrots
-    local description = ""
-    for i, brainrot in ipairs(topBrainrots) do
-        description = description .. string.format("**%dº** - %s: **%s**\n", i, brainrot.name, brainrot.valuePerSecond)
-    end
-    
-    -- 🎯 MODIFICAÇÃO AQUI: Usar o nome do melhor brainrot no título
-    local title = info.emoji .. " " .. highestBrainrot.name
-    
-    -- Embed com todos os 5 brainrots
-    local embed = {
-        title = title,
-        description = description,
-        color = info.color,
-        fields = {
-            {
-                name = "🌐 Informações do Servidor",
-                value = string.format("**Jogadores:** %d/%d\n**Server ID:** `%s`\n**Total encontrados:** %d",
-                    #Players:GetPlayers(), Players.MaxPlayers,
-                    serverIdFormatted,
-                    #topBrainrots),
-                inline = false
-            }
-        },
-        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-        footer = {
-            text = "Scanner Automático • " .. info.name .. " • " .. currentDateTime
-        }
-    }
-
-    -- Payload com o embed
-    local payload = {
-        embeds = {embed}
-    }
-    
-    local success, json = pcall(HttpService.JSONEncode, HttpService, payload)
-    
-    if success then
-        print("📤 Enviando TOP 5 brainrots para " .. category .. " webhook")
-        print("👑 " .. title)
-        for i, brainrot in ipairs(topBrainrots) do
-            print(string.format("   %dº: %s - %s (Valor: %s)", i, brainrot.name, brainrot.valuePerSecond, fmtShort(brainrot.numericGen)))
-        end
-        
-        print("🔗 Link Roblox: " .. (joinLinks and joinLinks.roblox or "N/A"))
-        
-        local sendSuccess = _tryWebhookSend(json, webhookUrl)
-        if sendSuccess then
-            markServerAsSent()
-            print("✅ TOP 5 brainrots enviados com sucesso!")
-        else
-            print("❌ Falha no envio do embed")
-        end
-    else
-        print("❌ Erro ao criar JSON")
-    end
-end
-
--- ===== NOVA FUNÇÃO: ENVIAR NOTIFICAÇÃO ESPECIAL PARA BRAINROT > 150M =====
-local function sendBrainrot150MNotification(topBrainrots)
-    -- Verificar se algum dos brainrots top 5 é > 150M
-    local hasHighBrainrot = false
-    local highestBrainrot = nil
-    
-    for _, brainrot in ipairs(topBrainrots) do
-        if brainrot and brainrot.numericGen >= 150000000 then
-            hasHighBrainrot = true
-            if not highestBrainrot or brainrot.numericGen > highestBrainrot.numericGen then
-                highestBrainrot = brainrot
-            end
-        end
-    end
-    
-    if not hasHighBrainrot or wasBrainrot150MAlreadySent() then
-        print("📭 Servidor já enviado para brainrot 150M ou nenhum brainrot > 150M encontrado")
-        return
-    end
-    
-    local currentDateTime = getCurrentDateTime()
-    
-    -- Gerar link de join (usando o maior brainrot)
-    local joinLinks = generateJoinLink(highestBrainrot)
-    
-    -- Criar descrição com os top brainrots
-    local description = "🚨 **Brainrot Highlight detectado nos top 5!** 🚨\n\n"
-    for i, brainrot in ipairs(topBrainrots) do
-        if brainrot and brainrot.numericGen >= 150000000 then
-            description = description .. string.format("**%dº** - %s: **%s**\n", i, brainrot.name, brainrot.valuePerSecond)
-        end
-    end
-    
-    -- 🎯 MODIFICAÇÃO AQUI: Usar o nome do melhor brainrot no título
     local title = "👑 " .. highestBrainrot.name .. " + TOP 4 (150M+)"
     
-    -- Embed especial para brainrot > 150M
     local embed = {
         title = title,
         description = description,
@@ -891,34 +612,32 @@ local function sendBrainrot150MNotification(topBrainrots)
     end
 end
 
--- ===== ENVIO DE UM ÚNICO EMBED POR SERVIDOR =====
-local function sendHighestBrainrotWebhook(highestBrainrot)
+-- ===== FUNÇÃO PRINCIPAL PARA ENVIAR TOP 5 BRAINROTS =====
+local function sendTopBrainrotsWebhook(topBrainrots)
     if wasServerAlreadySent() then
         print("📭 Servidor já enviado: " .. game.JobId)
         return
     end
     
-    if not highestBrainrot then
+    if not topBrainrots or #topBrainrots == 0 then
         print("📭 Nenhum brainrot qualificado encontrado")
         return
     end
     
-    -- VERIFICAR E ENVIAR NOTIFICAÇÃO PARA BRAINROT > 150M
-    if highestBrainrot.numericGen >= 150000000 then
-        sendBrainrot150MNotification(highestBrainrot)
-    end
+    -- Enviar notificação para brainrot > 150M
+    sendBrainrot150MNotification(topBrainrots)
     
+    -- Determinar qual webhook usar baseado no MAIOR brainrot
+    local highestBrainrot = topBrainrots[1]
     local webhookUrl, category = getWebhookForValue(highestBrainrot.numericGen)
     
     if not webhookUrl then
-        print("❌ Brainrot não qualificado: " .. highestBrainrot.name .. " - " .. highestBrainrot.valuePerSecond)
+        print("❌ Brainrots não qualificados. Maior: " .. highestBrainrot.name .. " - " .. highestBrainrot.valuePerSecond)
         return
     end
     
-    -- Gerar link de join
     local joinLinks = generateJoinLink(highestBrainrot)
     
-    -- Informações da categoria
     local categoryInfo = {
         ULTRA_HIGH = {color = 10181046, emoji = "💎", name = "ULTRA HIGH"},
         SPECIAL = {color = 16766720, emoji = "🔥", name = "ESPECIAL"}, 
@@ -928,22 +647,24 @@ local function sendHighestBrainrotWebhook(highestBrainrot)
     local info = categoryInfo[category]
     local currentDateTime = getCurrentDateTime()
     
-    -- Embed único com apenas o maior brainrot
+    local description = ""
+    for i, brainrot in ipairs(topBrainrots) do
+        description = description .. string.format("**%dº** - %s: **%s**\n", i, brainrot.name, brainrot.valuePerSecond)
+    end
+    
+    local title = info.emoji .. " " .. highestBrainrot.name
+    
     local embed = {
-        title = info.emoji .. " " .. highestBrainrot.name,
-        description = "",
+        title = title,
+        description = description,
         color = info.color,
         fields = {
             {
-                name = "📊 Geração",
-                value = "**" .. highestBrainrot.valuePerSecond .. "**",
-                inline = true
-            },
-            {
                 name = "🌐 Informações do Servidor",
-                value = string.format("**Jogadores:** %d/%d\n**Server ID:** `%s`",
+                value = string.format("**Jogadores:** %d/%d\n**Server ID:** `%s`\n**Total encontrados:** %d",
                     #Players:GetPlayers(), Players.MaxPlayers,
-                    serverIdFormatted),
+                    serverIdFormatted,
+                    #topBrainrots),
                 inline = false
             }
         },
@@ -953,7 +674,6 @@ local function sendHighestBrainrotWebhook(highestBrainrot)
         }
     }
 
-    -- Payload com apenas um embed
     local payload = {
         embeds = {embed}
     }
@@ -961,14 +681,18 @@ local function sendHighestBrainrotWebhook(highestBrainrot)
     local success, json = pcall(HttpService.JSONEncode, HttpService, payload)
     
     if success then
-        print("📤 Enviando maior brainrot para " .. category .. " webhook")
-        print("👑 " .. highestBrainrot.name .. " - " .. highestBrainrot.valuePerSecond)
+        print("📤 Enviando TOP 5 brainrots para " .. category .. " webhook")
+        print("👑 " .. title)
+        for i, brainrot in ipairs(topBrainrots) do
+            print(string.format("   %dº: %s - %s (Valor: %s)", i, brainrot.name, brainrot.valuePerSecond, fmtShort(brainrot.numericGen)))
+        end
+        
         print("🔗 Link Roblox: " .. (joinLinks and joinLinks.roblox or "N/A"))
         
         local sendSuccess = _tryWebhookSend(json, webhookUrl)
         if sendSuccess then
             markServerAsSent()
-            print("✅ Embed do servidor enviado com sucesso!")
+            print("✅ TOP 5 brainrots enviados com sucesso!")
         else
             print("❌ Falha no envio do embed")
         end
@@ -981,7 +705,6 @@ end
 local function switchServer()
     print("🔄 Iniciando troca de servidor...")
     
-    -- Método 1: Server Hop local (corrigido)
     local success, errorMsg = pcall(function()
         local hopModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptsHub07/steal/refs/heads/main/teste1.lua"))()
         hopModule:Teleport()
@@ -994,7 +717,6 @@ local function switchServer()
         print("❌ Falha no Server Hop: " .. tostring(errorMsg))
     end
     
-    -- Método 2: TeleportService direto
     local success2, errorMsg2 = pcall(function()
         TeleportService:Teleport(game.PlaceId)
     end)
@@ -1018,6 +740,8 @@ local function main()
     
     print("🌐 Sistema de links ativado!")
     print("🎯 Agora capturando os 5 MAIORES brainrots por servidor!")
+    print("📁 Scaneando FastOverheadTemplate na pasta Debris")
+    
     if REDIRECTOR_BASE_URL ~= "" and REDIRECTOR_BASE_URL ~= "https://seu-usuario.github.io/redirector" then
         print("🔗 Usando redirector externo")
     else
@@ -1030,25 +754,24 @@ local function main()
     while true do
         print("\n" .. string.rep("=", 50))
         print("🔄 INICIANDO NOVO SCAN - " .. os.date("%X"))
-        print("🎯 Buscando os 5 MAIORES brainrots")
+        print("🎯 Buscando os 5 MAIORES brainrots em FastOverheadTemplate")
         print(string.rep("=", 50))
         
         wait(3)
         
-        local success, topBrainrots = pcall(scanAllPlots)
+        local success, topBrainrots = pcall(scanAllFastOverheadTemplates)
         
         if success then
             sendTopBrainrotsWebhook(topBrainrots)
             consecutiveFailures = 0
         else
-            print("❌ Erro no scan")
+            print("❌ Erro no scan: " .. tostring(topBrainrots))
             consecutiveFailures = consecutiveFailures + 1
         end
         
         if SERVER_SWITCH_INTERVAL > 0 then
             wait(2)
             
-            -- Verificar se atingiu muitas falhas consecutivas
             if consecutiveFailures >= maxConsecutiveFailures then
                 print("⚠️ Muitas falhas consecutivas, reiniciando o ciclo...")
                 consecutiveFailures = 0
@@ -1066,7 +789,6 @@ local function main()
                 consecutiveFailures = consecutiveFailures + 1
             end
             
-            -- Esperar a teleportação acontecer
             print("⏳ Aguardando teleportação...")
             wait(5)
         else
