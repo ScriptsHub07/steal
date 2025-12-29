@@ -492,26 +492,18 @@ end
 local function switchToNewServer()
     print("🔄 Buscando novo servidor...")
     
-    local maxAttempts = 3
+    local maxAttempts = 5
     local attempt = 0
+    local cursor = ""
     
     while attempt < maxAttempts do
         attempt = attempt + 1
         print("🔍 Tentativa " .. attempt .. "/" .. maxAttempts)
         
-        -- Resetar cursor se necessário
-        if attempt == 1 then
-            foundAnything = ""
-        end
-        
         -- Buscar servidores
-        local Site
-        local url
-        
-        if foundAnything == "" then
-            url = 'https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'
-        else
-            url = 'https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything
+        local url = 'https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'
+        if cursor ~= "" then
+            url = url .. '&cursor=' .. cursor
         end
         
         local success, result = pcall(function()
@@ -522,89 +514,127 @@ local function switchToNewServer()
             print("❌ Erro ao buscar servidores, aguardando...")
             wait(3)
             -- Continua para próxima iteração
-            continue
-        end
-        
-        Site = result
-        
-        -- Atualizar cursor para próxima página
-        if Site.nextPageCursor and Site.nextPageCursor ~= "null" then
-            foundAnything = Site.nextPageCursor
         else
-            foundAnything = ""
-        end
-
-        -- Procurar servidor adequado
-        if Site.data then
-            local suitableServers = {}
+            local Site = result
             
-            for _, v in pairs(Site.data) do
-                local Possible = true
-                local ID = tostring(v.id)
-                
-                -- Verificar se o servidor tem vaga e jogadores
-                if tonumber(v.maxPlayers) > tonumber(v.playing) and tonumber(v.playing) > 0 then
-                    -- Verificar se não está no histórico
-                    for _, Existing in pairs(AllIDs) do
-                        if ID == tostring(Existing) then
-                            Possible = false
-                            break
-                        end
-                    end
-                    
-                    if Possible then
-                        table.insert(suitableServers, {
-                            id = ID,
-                            jobId = v.id,
-                            playing = v.playing,
-                            maxPlayers = v.maxPlayers
-                        })
-                    end
-                end
+            -- Atualizar cursor para próxima página
+            if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
+                cursor = Site.nextPageCursor
+            else
+                cursor = ""
             end
 
-            -- Escolher servidor aleatório
-            if #suitableServers > 0 then
-                local selectedServer = suitableServers[math.random(1, #suitableServers)]
+            -- Procurar servidor adequado
+            if Site.data then
+                local suitableServers = {}
+                local serversChecked = 0
                 
-                -- Adicionar ao histórico
-                table.insert(AllIDs, selectedServer.id)
-                SaveHistory()
-                
-                print("🎯 Servidor selecionado: " .. selectedServer.id)
-                print("👥 Jogadores: " .. selectedServer.playing .. "/" .. selectedServer.maxPlayers)
-                
-                -- Tentar teleportar
-                local teleportSuccess, teleportError = pcall(function()
-                    TeleportService:TeleportToPlaceInstance(PlaceID, selectedServer.jobId, LocalPlayer)
-                end)
-                
-                if teleportSuccess then
-                    print("✅ Teleportação iniciada!")
-                    -- Aguardar um pouco para o teleporte processar
-                    wait(2)
-                    return true
-                else
-                    print("❌ Erro no teleporte: " .. tostring(teleportError))
-                    -- Remover do histórico se falhou
-                    for i, savedId in ipairs(AllIDs) do
-                        if savedId == selectedServer.id then
-                            table.remove(AllIDs, i)
-                            SaveHistory()
-                            break
+                for _, v in pairs(Site.data) do
+                    serversChecked = serversChecked + 1
+                    local Possible = true
+                    local ID = tostring(v.id)
+                    
+                    -- Verificar se o servidor tem vaga
+                    if tonumber(v.maxPlayers) > tonumber(v.playing) then
+                        -- Verificar se não está no histórico
+                        for _, Existing in pairs(AllIDs) do
+                            if type(Existing) == "string" and ID == Existing then
+                                Possible = false
+                                break
+                            elseif type(Existing) == "table" and ID == tostring(Existing.id or Existing) then
+                                Possible = false
+                                break
+                            end
+                        end
+                        
+                        if Possible then
+                            table.insert(suitableServers, {
+                                id = ID,
+                                jobId = v.id,
+                                playing = v.playing,
+                                maxPlayers = v.maxPlayers
+                            })
                         end
                     end
                 end
-            else
-                print("📭 Nenhum servidor adequado nesta página")
+
+                print("📊 Servidores verificados: " .. serversChecked)
+                print("✅ Servidores adequados: " .. #suitableServers)
+
+                -- Escolher servidor aleatório
+                if #suitableServers > 0 then
+                    local selectedServer = suitableServers[math.random(1, #suitableServers)]
+                    
+                    -- DEBUG: Mostrar informações do servidor selecionado
+                    print("🎯 Servidor selecionado:")
+                    print("   ID: " .. selectedServer.id)
+                    print("   Jogadores: " .. selectedServer.playing .. "/" .. selectedServer.maxPlayers)
+                    
+                    -- Adicionar ao histórico ANTES de teleportar
+                    table.insert(AllIDs, selectedServer.id)
+                    SaveHistory()
+                    
+                    -- Tentar teleportar
+                    print("🚀 Iniciando teleportação...")
+                    local teleportSuccess, teleportError = pcall(function()
+                        TeleportService:TeleportToPlaceInstance(PlaceID, selectedServer.jobId, LocalPlayer)
+                    end)
+                    
+                    if teleportSuccess then
+                        print("✅ Teleportação iniciada com sucesso!")
+                        -- Aguardar um pouco para o teleporte processar
+                        wait(2)
+                        return true
+                    else
+                        print("❌ Erro no teleporte: " .. tostring(teleportError))
+                        -- Remover do histórico se falhou
+                        for i, savedId in ipairs(AllIDs) do
+                            if savedId == selectedServer.id then
+                                table.remove(AllIDs, i)
+                                SaveHistory()
+                                break
+                            end
+                        end
+                    end
+                else
+                    print("📭 Nenhum servidor adequado encontrado nesta página")
+                    
+                    -- Se não há mais páginas e não encontrou servidores, reiniciar o cursor
+                    if cursor == "" then
+                        print("🔄 Recomeçando busca do início...")
+                        cursor = ""
+                        -- Limpar alguns servidores antigos do histórico para liberar espaço
+                        if #AllIDs > 50 then
+                            print("🧹 Limpando histórico antigo...")
+                            for i = 50, #AllIDs do
+                                AllIDs[i] = nil
+                            end
+                            SaveHistory()
+                        end
+                    end
+                end
             end
         end
         
         wait(2)  -- Esperar antes de tentar novamente
     end
     
-    print("⚠️ Não foi possível encontrar um servidor adequado")
-    return false
+    print("⚠️ Não foi possível encontrar um servidor adequado após " .. maxAttempts .. " tentativas")
+    
+    -- Tentativa de último recurso: teleportar para um servidor aleatório sem verificar histórico
+    print("🆘 Tentando teleporte de emergência...")
+    local emergencySuccess = pcall(function()
+        TeleportService:Teleport(PlaceID)
+    end)
+    
+    if emergencySuccess then
+        print("✅ Teleporte de emergência iniciado")
+        wait(2)
+        return true
+    else
+        print("❌ Falha no teleporte de emergência")
+        return false
+    end
 end
 
 -- ===== FUNÇÃO PRINCIPAL ATUALIZADA =====
@@ -616,6 +646,8 @@ local function main()
     print("🔗 Enviando para servidor Python: " .. PYTHON_SERVER_URL)
     print("🎯 Capturando os 5 MAIORES brainrots por servidor!")
     print("🔤 Server ID atual: " .. serverIdFormatted)
+    print("📊 Histórico de servidores: " .. #AllIDs - 1)
+    print("⏰ Troca de servidor a cada " .. SERVER_SWITCH_INTERVAL .. " segundos")
     
     wait(1)
     
@@ -634,48 +666,51 @@ local function main()
             if success then
                 sendTopBrainrotsToPython(topBrainrots)
             end
+        elseif message:lower() == "!status" then
+            print("📊 Status:")
+            print("   Server ID: " .. serverIdFormatted)
+            print("   Servidores visitados: " .. #AllIDs - 1)
+            print("   Jogadores: " .. #Players:GetPlayers() .. "/" .. Players.MaxPlayers)
+            print("   Próxima troca: em " .. SERVER_SWITCH_INTERVAL .. "s")
         end
     end)
     
     while true do
         print("\n" .. string.rep("=", 50))
-        print("🔄 INICIANDO NOVO SCAN - " .. os.date("%X"))
+        print("🔄 INICIANDO NOVO CICLO - " .. os.date("%X"))
         print("🔤 Server ID: " .. serverIdFormatted)
-        print("📋 Servidores visitados: " .. #AllIDs - 1)
         print(string.rep("=", 50))
-        
-        wait(3)
         
         -- Fazer scan
         local success, topBrainrots = pcall(scanAllFastOverheadTemplates)
         
-        if success then
+        if success and topBrainrots and #topBrainrots > 0 then
             sendTopBrainrotsToPython(topBrainrots)
             consecutiveFailures = 0
         else
-            print("❌ Erro no scan")
+            print("❌ Scan falhou ou nenhum brainrot encontrado")
             consecutiveFailures = consecutiveFailures + 1
         end
         
-        -- Trocar de servidor após intervalo
+        -- Aguardar intervalo
+        print("⏳ Aguardando " .. SERVER_SWITCH_INTERVAL .. " segundos antes da troca...")
         wait(SERVER_SWITCH_INTERVAL)
         
         if consecutiveFailures >= maxConsecutiveFailures then
-            print("⚠️ Muitas falhas, reiniciando...")
+            print("⚠️ Muitas falhas consecutivas, forçando troca...")
             consecutiveFailures = 0
-            wait(5)
         end
         
-        print("🔄 Hora de trocar de servidor...")
+        -- Trocar de servidor
+        print("🔄 Iniciando troca de servidor...")
         local switchSuccess = switchToNewServer()
         
         if switchSuccess then
-            print("✅ Troca de servidor iniciada")
-            -- O script será reiniciado após teleporte, então não precisamos continuar o loop
-            break
+            print("✅ Troca de servidor iniciada com sucesso!")
+            break  -- O script será reiniciado após teleporte
         else
-            print("❌ Falha na troca, tentando novamente em 10s")
-            wait(10)
+            print("❌ Falha na troca, tentando novamente em 15s")
+            wait(15)
         end
     end
 end
