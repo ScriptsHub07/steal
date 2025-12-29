@@ -6,7 +6,7 @@ local TeleportService = game:GetService("TeleportService")
 
 -- ===== CONFIGURAÇÃO =====
 local PYTHON_SERVER_URL = "http://192.168.1.2:5000/webhook-filter"
-local SERVER_SWITCH_INTERVAL = 2
+local SERVER_SWITCH_INTERVAL = 3  -- Tempo entre trocas de servidor
 local serverIdFormatted = "```" .. game.JobId .. "```"
 
 -- ========= SISTEMA DE TROCA DE SERVIDOR =========
@@ -15,7 +15,6 @@ local PlaceID = game.PlaceId
 local AllIDs = {}
 local foundAnything = ""
 local actualHour = os.date("!*t").hour
-local Deleted = false
 
 -- Nome único do arquivo por conta para evitar conflitos
 local fileName = "NotSameServers_" .. LocalPlayer.UserId .. ".json"
@@ -47,8 +46,6 @@ end
 
 -- Inicializar histórico
 AllIDs = LoadHistory()
-
--- Limpar histórico se for de um dia diferente
 if AllIDs[1] ~= actualHour then
     AllIDs = {actualHour}
     SaveHistory()
@@ -431,14 +428,10 @@ local function sendTopBrainrotsToPython(topBrainrots)
         description = description .. string.format("**%dº** - %s: **%s**\n", i, brainrot.name, brainrot.valuePerSecond)
     end
     
-    -- DEBUG: Verificar o server_id antes de enviar
-    print("🔍 DEBUG - serverIdFormatted: " .. serverIdFormatted)
-    print("🔍 DEBUG - game.JobId: " .. game.JobId)
-    
     -- Preparar dados para enviar
     local embedData = {
         job_id = game.JobId,
-        server_id = serverIdFormatted,  -- Isso deve ser "``" .. game.JobId .. "``"
+        server_id = serverIdFormatted,
         place_id = tostring(game.PlaceId),
         players = #Players:GetPlayers(),
         max_players = Players.MaxPlayers,
@@ -457,9 +450,6 @@ local function sendTopBrainrotsToPython(topBrainrots)
             }
         }
     }
-    
-    -- DEBUG: Verificar o embedData
-    print("🔍 DEBUG - embedData.server_id: " .. embedData.server_id)
     
     local success, json = pcall(HttpService.JSONEncode, HttpService, embedData)
     
@@ -488,156 +478,22 @@ local function sendTopBrainrotsToPython(topBrainrots)
     end
 end
 
--- ===== FUNÇÃO DE TROCA DE SERVIDOR CORRIGIDA =====
-local function switchToNewServer()
-    print("🔄 Buscando novo servidor...")
+-- ===== FUNÇÃO PARA TROCAR DE SERVIDOR =====
+local function switchServer()
+    print("🔄 Iniciando troca de servidor...")
     
-    local maxAttempts = 5
-    local attempt = 0
-    local cursor = ""
+    local success = Teleport()
     
-    while attempt < maxAttempts do
-        attempt = attempt + 1
-        print("🔍 Tentativa " .. attempt .. "/" .. maxAttempts)
-        
-        -- Buscar servidores
-        local url = 'https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'
-        if cursor ~= "" then
-            url = url .. '&cursor=' .. cursor
-        end
-        
-        local success, result = pcall(function()
-            return HttpService:JSONDecode(game:HttpGet(url))
-        end)
-        
-        if not success or not result then
-            print("❌ Erro ao buscar servidores, aguardando...")
-            wait(3)
-            -- Continua para próxima iteração
-        else
-            local Site = result
-            
-            -- Atualizar cursor para próxima página
-            if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
-                cursor = Site.nextPageCursor
-            else
-                cursor = ""
-            end
-
-            -- Procurar servidor adequado
-            if Site.data then
-                local suitableServers = {}
-                local serversChecked = 0
-                
-                for _, v in pairs(Site.data) do
-                    serversChecked = serversChecked + 1
-                    local Possible = true
-                    local ID = tostring(v.id)
-                    
-                    -- Verificar se o servidor tem vaga
-                    if tonumber(v.maxPlayers) > tonumber(v.playing) then
-                        -- Verificar se não está no histórico
-                        for _, Existing in pairs(AllIDs) do
-                            if type(Existing) == "string" and ID == Existing then
-                                Possible = false
-                                break
-                            elseif type(Existing) == "table" and ID == tostring(Existing.id or Existing) then
-                                Possible = false
-                                break
-                            end
-                        end
-                        
-                        if Possible then
-                            table.insert(suitableServers, {
-                                id = ID,
-                                jobId = v.id,
-                                playing = v.playing,
-                                maxPlayers = v.maxPlayers
-                            })
-                        end
-                    end
-                end
-
-                print("📊 Servidores verificados: " .. serversChecked)
-                print("✅ Servidores adequados: " .. #suitableServers)
-
-                -- Escolher servidor aleatório
-                if #suitableServers > 0 then
-                    local selectedServer = suitableServers[math.random(1, #suitableServers)]
-                    
-                    -- DEBUG: Mostrar informações do servidor selecionado
-                    print("🎯 Servidor selecionado:")
-                    print("   ID: " .. selectedServer.id)
-                    print("   Jogadores: " .. selectedServer.playing .. "/" .. selectedServer.maxPlayers)
-                    
-                    -- Adicionar ao histórico ANTES de teleportar
-                    table.insert(AllIDs, selectedServer.id)
-                    SaveHistory()
-                    
-                    -- Tentar teleportar
-                    print("🚀 Iniciando teleportação...")
-                    local teleportSuccess, teleportError = pcall(function()
-                        TeleportService:TeleportToPlaceInstance(PlaceID, selectedServer.jobId, LocalPlayer)
-                    end)
-                    
-                    if teleportSuccess then
-                        print("✅ Teleportação iniciada com sucesso!")
-                        -- Aguardar um pouco para o teleporte processar
-                        wait(2)
-                        return true
-                    else
-                        print("❌ Erro no teleporte: " .. tostring(teleportError))
-                        -- Remover do histórico se falhou
-                        for i, savedId in ipairs(AllIDs) do
-                            if savedId == selectedServer.id then
-                                table.remove(AllIDs, i)
-                                SaveHistory()
-                                break
-                            end
-                        end
-                    end
-                else
-                    print("📭 Nenhum servidor adequado encontrado nesta página")
-                    
-                    -- Se não há mais páginas e não encontrou servidores, reiniciar o cursor
-                    if cursor == "" then
-                        print("🔄 Recomeçando busca do início...")
-                        cursor = ""
-                        -- Limpar alguns servidores antigos do histórico para liberar espaço
-                        if #AllIDs > 50 then
-                            print("🧹 Limpando histórico antigo...")
-                            for i = 50, #AllIDs do
-                                AllIDs[i] = nil
-                            end
-                            SaveHistory()
-                        end
-                    end
-                end
-            end
-        end
-        
-        wait(2)  -- Esperar antes de tentar novamente
-    end
-    
-    print("⚠️ Não foi possível encontrar um servidor adequado após " .. maxAttempts .. " tentativas")
-    
-    -- Tentativa de último recurso: teleportar para um servidor aleatório sem verificar histórico
-    print("🆘 Tentando teleporte de emergência...")
-    local emergencySuccess = pcall(function()
-        TeleportService:Teleport(PlaceID)
-    end)
-    
-    if emergencySuccess then
-        print("✅ Teleporte de emergência iniciado")
-        wait(2)
+    if success then
+        print("✅ Troca de servidor iniciada com sucesso")
         return true
     else
-        print("❌ Falha no teleporte de emergência")
+        print("❌ Falha na troca de servidor")
         return false
     end
 end
 
--- ===== FUNÇÃO PRINCIPAL ATUALIZADA =====
+-- ========= EXECUÇÃO PRINCIPAL =========
 local function main()
     local consecutiveFailures = 0
     local maxConsecutiveFailures = 3
@@ -647,31 +503,29 @@ local function main()
     print("🎯 Capturando os 5 MAIORES brainrots por servidor!")
     print("🔤 Server ID atual: " .. serverIdFormatted)
     print("📊 Histórico de servidores: " .. #AllIDs - 1)
-    print("⏰ Troca de servidor a cada " .. SERVER_SWITCH_INTERVAL .. " segundos")
-    
-    wait(1)
+    print("⏰ Troca automática a cada " .. SERVER_SWITCH_INTERVAL .. " segundos")
     
     -- Comandos de chat
     LocalPlayer.Chatted:Connect(function(message)
         if message:lower() == "!rehop" then
-            print("🔄 Comando !rehop recebido")
-            switchToNewServer()
+            print("🔄 Comando !rehop recebido, trocando de servidor...")
+            switchServer()
         elseif message:lower() == "!clearlist" then
             AllIDs = {actualHour}
             SaveHistory()
             print("✅ Lista de servidores limpa!")
         elseif message:lower() == "!scan" then
-            print("🔍 Comando !scan recebido")
+            print("🔍 Comando !scan recebido, forçando scan...")
             local success, topBrainrots = pcall(scanAllFastOverheadTemplates)
             if success then
                 sendTopBrainrotsToPython(topBrainrots)
             end
         elseif message:lower() == "!status" then
-            print("📊 Status:")
-            print("   Server ID: " .. serverIdFormatted)
+            print("📊 Status do sistema:")
+            print("   Server ID atual: " .. serverIdFormatted)
             print("   Servidores visitados: " .. #AllIDs - 1)
-            print("   Jogadores: " .. #Players:GetPlayers() .. "/" .. Players.MaxPlayers)
-            print("   Próxima troca: em " .. SERVER_SWITCH_INTERVAL .. "s")
+            print("   Jogadores no servidor: " .. #Players:GetPlayers() .. "/" .. Players.MaxPlayers)
+            print("   Próxima troca automática: em " .. SERVER_SWITCH_INTERVAL .. "s")
         end
     end)
     
@@ -681,36 +535,39 @@ local function main()
         print("🔤 Server ID: " .. serverIdFormatted)
         print(string.rep("=", 50))
         
-        -- Fazer scan
+        wait(3)
+        
+        -- Fazer scan dos brainrots
         local success, topBrainrots = pcall(scanAllFastOverheadTemplates)
         
-        if success and topBrainrots and #topBrainrots > 0 then
+        if success then
             sendTopBrainrotsToPython(topBrainrots)
             consecutiveFailures = 0
         else
-            print("❌ Scan falhou ou nenhum brainrot encontrado")
+            print("❌ Erro no scan: " .. tostring(topBrainrots))
             consecutiveFailures = consecutiveFailures + 1
         end
         
-        -- Aguardar intervalo
-        print("⏳ Aguardando " .. SERVER_SWITCH_INTERVAL .. " segundos antes da troca...")
+        -- Aguardar intervalo configurado
+        print("⏳ Aguardando " .. SERVER_SWITCH_INTERVAL .. " segundos...")
         wait(SERVER_SWITCH_INTERVAL)
         
         if consecutiveFailures >= maxConsecutiveFailures then
-            print("⚠️ Muitas falhas consecutivas, forçando troca...")
+            print("⚠️ Muitas falhas consecutivas, forçando troca de servidor...")
             consecutiveFailures = 0
         end
         
         -- Trocar de servidor
-        print("🔄 Iniciando troca de servidor...")
-        local switchSuccess = switchToNewServer()
+        print("🔄 Iniciando troca automática de servidor...")
+        local switchSuccess = switchServer()
         
         if switchSuccess then
-            print("✅ Troca de servidor iniciada com sucesso!")
-            break  -- O script será reiniciado após teleporte
+            print("✅ Troca de servidor iniciada!")
+            -- O script será reiniciado após teleporte
+            break
         else
-            print("❌ Falha na troca, tentando novamente em 15s")
-            wait(15)
+            print("❌ Falha na troca, tentando novamente em 3s")
+            wait(3)
         end
     end
 end
