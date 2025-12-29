@@ -488,7 +488,7 @@ local function sendTopBrainrotsToPython(topBrainrots)
     end
 end
 
--- ===== SISTEMA MELHORADO DE TROCA DE SERVIDOR =====
+-- ===== FUNÇÃO DE TROCA DE SERVIDOR CORRIGIDA =====
 local function switchToNewServer()
     print("🔄 Buscando novo servidor...")
     
@@ -521,7 +521,8 @@ local function switchToNewServer()
         if not success or not result then
             print("❌ Erro ao buscar servidores, aguardando...")
             wait(3)
-            goto continue_loop
+            -- Continua para próxima iteração
+            continue
         end
         
         Site = result
@@ -599,7 +600,6 @@ local function switchToNewServer()
             end
         end
         
-        ::continue_loop::
         wait(2)  -- Esperar antes de tentar novamente
     end
     
@@ -607,7 +607,7 @@ local function switchToNewServer()
     return false
 end
 
--- ========= EXECUÇÃO PRINCIPAL =========
+-- ===== FUNÇÃO PRINCIPAL ATUALIZADA =====
 local function main()
     local consecutiveFailures = 0
     local maxConsecutiveFailures = 3
