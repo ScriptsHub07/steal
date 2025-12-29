@@ -5,11 +5,9 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 
 -- ===== CONFIGURAÇÃO =====
--- URL do seu servidor Python (substitua pelo seu IP/porta)
 local PYTHON_SERVER_URL = "http://192.168.1.2:5000/webhook-filter"
 local SERVER_SWITCH_INTERVAL = 2
--- Server ID formatado corretamente com backticks duplos (clicável no Discord)
-local serverIdFormatted = "``" .. game.JobId .. "``"
+local serverIdFormatted = "```" .. game.JobId .. "```"
 
 -- ========= SISTEMA DE TROCA DE SERVIDOR =========
 local LocalPlayer = Players.LocalPlayer
@@ -433,10 +431,14 @@ local function sendTopBrainrotsToPython(topBrainrots)
         description = description .. string.format("**%dº** - %s: **%s**\n", i, brainrot.name, brainrot.valuePerSecond)
     end
     
+    -- DEBUG: Verificar o server_id antes de enviar
+    print("🔍 DEBUG - serverIdFormatted: " .. serverIdFormatted)
+    print("🔍 DEBUG - game.JobId: " .. game.JobId)
+    
     -- Preparar dados para enviar
     local embedData = {
         job_id = game.JobId,
-        server_id = serverIdFormatted,  -- Formatado com backticks duplos para ser clicável
+        server_id = serverIdFormatted,  -- Isso deve ser "``" .. game.JobId .. "``"
         place_id = tostring(game.PlaceId),
         players = #Players:GetPlayers(),
         max_players = Players.MaxPlayers,
@@ -456,6 +458,9 @@ local function sendTopBrainrotsToPython(topBrainrots)
         }
     }
     
+    -- DEBUG: Verificar o embedData
+    print("🔍 DEBUG - embedData.server_id: " .. embedData.server_id)
+    
     local success, json = pcall(HttpService.JSONEncode, HttpService, embedData)
     
     if success then
@@ -463,7 +468,7 @@ local function sendTopBrainrotsToPython(topBrainrots)
         print("📋 Job ID: " .. game.JobId)
         print("🎮 Jogadores: " .. #Players:GetPlayers() .. "/" .. Players.MaxPlayers)
         print("📊 Categoria: " .. category)
-        print("🔤 Server ID formatado (clicável): " .. serverIdFormatted)
+        print("🔤 Server ID sendo enviado: " .. serverIdFormatted)
         
         local sendSuccess, response = _sendToPythonServer(json)
         
