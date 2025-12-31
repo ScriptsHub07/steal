@@ -178,7 +178,7 @@ local function scanAllFastOverheadTemplates()
             print("🔎 Scan template " .. scannedCount)
             
             -- Procurar pela GUI dentro do template
-            local gui = template:FindFirstChild("GUI")
+            local gui = template:FindFirstChild("AnimalOverhead")
             if gui then
                 print("   ✅ GUI encontrada")
                 
