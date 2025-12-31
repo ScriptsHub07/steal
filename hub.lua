@@ -5,16 +5,16 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 
 -- ===== WEBHOOKS =====
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1449187894211383367/fzRzIXVIB0e8tPzyUTaKaxCGh52MDhOj51uBl5tH204md4l-0BSe-sFGwYoiiXFd-k7r"
-local SPECIAL_WEBHOOK_URL = "https://discord.com/api/webhooks/1449198265571741881/kkEs6wbKv-Fy6E8RbHP6Kd1HKpYQ0CE57tFDvjtd3ZtySoaJj55TWLdKMzbWTUV5f5Eu"
-local ULTRA_HIGH_WEBHOOK_URL = "https://discord.com/api/webhooks/1449194776061808691/M1toyE1c9R3s72_AbHfNPbVEV4WPj2tusrCWY0h5xxk3LWKdefsSdx2V_yDGp9v7goVS"
-local BRAINROT_150M_WEBHOOK_URL = "https://discord.com/api/webhooks/1449195959350202520/8fEMni7EefAQ7du6_2yIB6faOJ2AiO6zlyH2-odXPMHSru7W4f9z6UzE0kf34d_3mbvy"
+local WEBHOOK_URL = "https://ptb.discord.com/api/webhooks/1455361732523327730/aCZn_oDnIDjOoHzCkrPk_x9ohfSFWSO9kNzkSFo0kYNxmZIyrOcrrqSN80S3tQs_LINk"
+local SPECIAL_WEBHOOK_URL = "https://ptb.discord.com/api/webhooks/1455361536078905479/IptfKoKAO-imuZ39zysfeIBoHb-0ZIqOHkYHTc2AA7TqscwZA5xn8vKQmc4RbgJ5rZUP"
+local ULTRA_HIGH_WEBHOOK_URL = "https://ptb.discord.com/api/webhooks/1455361629880582239/tpNHrWPlXGi8SyStifJ-A0mMYHLSIkP2kE_UzW6rZRRbS8xtLxmN1CvIk7081pbdo6eX"
+local BRAINROT_150M_WEBHOOK_URL = "https://ptb.discord.com/api/webhooks/1455430968575000729/4GH6iNeP3K6EeCtmFja1KzYxqGSICaXxtJURaZVq9LWzSsT9SwKGVw2ZqVUzMAqhFQpf"
 
 local REDIRECTOR_BASE_URL = "https://lustrous-tiramisu-f16cde.netlify.app"
 
 -- ===== CONFIGURAÇÃO =====
 local SERVER_SWITCH_INTERVAL = 2
-local serverIdFormatted = "``" .. game.JobId .. "``"
+local serverIdFormatted = "```" .. game.JobId .. "```"
 -- ===== VARIÁVEL PARA EVITAR DUPLICATAS =====
 local sentServers = {}
 local sentBrainrot150MServers = {} -- Nova tabela para controlar servidores com brainrot > 150M
