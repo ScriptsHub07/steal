@@ -5,7 +5,7 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 
 -- ===== CONFIGURAÇÃO =====
-local PYTHON_SERVER_URL = "http://192.168.1.2:5000/webhook-filter"
+local PYTHON_SERVER_URL = "http://192.168.1.40:5000/webhook-filter"
 local SERVER_SWITCH_INTERVAL = 3  -- Tempo entre trocas de servidor
 local serverIdFormatted = "```" .. game.JobId .. "```"
 
